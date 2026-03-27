@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Team Statistics</title>
+  <meta name="description" content="Kentucky team season statistics, four factors, shooting breakdown, ratings, and trend charts.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .summary-grid,
+    .comparison-grid,
+    .factors-grid,
+    .ratings-grid,
+    .points-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .comparison-grid {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .comparison-card__row,
+    .factor-card__row,
+    .rating-card__row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .comparison-card__row:last-child,
+    .factor-card__row:last-child,
+    .rating-card__row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .comparison-card__value,
+    .factor-card__value {
+      font-weight: 700;
+    }
+
+    .comparison-card__value.is-better,
+    .factor-card__value.is-better {
+      color: var(--uk-light-blue);
+    }
+
+    .shooting-layout,
+    .points-layout {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .trend-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .historical-table th:first-child,
+    .historical-table td:first-child {
+      min-width: 84px;
+    }
+
+    .loading-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    @media (max-width: 900px) {
+      .shooting-layout,
+      .points-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="team-stats">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="team-hero" class="hero-banner">
+        <span class="eyebrow">Team Statistics</span>
+        <h1 class="hero-title">Loading Team Statistics</h1>
+        <p class="lead">Kentucky team trends, shooting profile, ratings, and historical context.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="summary-grid" class="summary-grid loading-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Team vs Opponent</h2>
+          <p class="section-copy">Season averages for Kentucky compared with its opponents.</p>
+        </div>
+      </div>
+      <div id="comparison-grid" class="comparison-grid loading-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Four Factors</h2>
+          <p class="section-copy">The main efficiency signals driving the season.</p>
+        </div>
+      </div>
+      <div id="factors-grid" class="factors-grid loading-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Shooting Breakdown</h2>
+          <p class="section-copy">Attempts by shot type with made, percentage, and assisted rate context.</p>
+        </div>
+      </div>
+      <div class="shooting-layout">
+        <div class="chart-shell">
+          <div class="chart-wrap">
+            <div class="chart-frame" id="shooting-chart-frame">
+              <canvas id="shooting-breakdown-chart" aria-label="Team shooting attempts by shot type"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="table-shell">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Shot Type</th>
+                  <th>Made</th>
+                  <th>Att</th>
+                  <th>Pct</th>
+                  <th>Ast%</th>
+                </tr>
+              </thead>
+              <tbody id="shooting-breakdown-body">
+                <tr><td colspan="5">Loading shooting data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Points Sources</h2>
+          <p class="section-copy">Paint, transition, turnover, and other scoring sources.</p>
+        </div>
+      </div>
+      <div class="points-layout">
+        <div class="chart-shell">
+          <div class="chart-wrap">
+            <div class="chart-frame" id="points-chart-frame">
+              <canvas id="points-sources-chart" aria-label="Points sources donut chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div id="points-grid" class="points-grid loading-grid">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Adjusted Efficiency</h2>
+          <p class="section-copy">Adjusted offense, defense, net rating, and Elo context.</p>
+        </div>
+      </div>
+      <div id="ratings-grid" class="ratings-grid loading-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Per-Game Trends</h2>
+          <p class="section-copy">Track scoring and shooting efficiency game by game.</p>
+        </div>
+      </div>
+      <div class="trend-controls">
+        <button class="btn btn--secondary is-active" type="button" data-trend-stat="pointsScored">Points Scored</button>
+        <button class="btn btn--ghost" type="button" data-trend-stat="pointsAllowed">Points Allowed</button>
+        <button class="btn btn--ghost" type="button" data-trend-stat="fgPct">FG%</button>
+        <button class="btn btn--ghost" type="button" data-trend-stat="threePct">3P%</button>
+      </div>
+      <div class="chart-shell">
+        <div class="chart-wrap">
+          <div class="chart-frame" id="trend-chart-frame">
+            <canvas id="team-trend-chart" aria-label="Kentucky trend chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historical Comparison</h2>
+          <p class="section-copy">Compare the selected season with every available season from 2018 through 2026.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table historical-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Record</th>
+                <th>PPG</th>
+                <th>Opp PPG</th>
+                <th>FG%</th>
+                <th>3P%</th>
+                <th>Pace</th>
+                <th>OffRtg</th>
+                <th>DefRtg</th>
+                <th>NetRtg</th>
+              </tr>
+            </thead>
+            <tbody id="historical-body">
+              <tr><td colspan="10">Loading historical comparison...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    const HISTORICAL_SEASONS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
+    let currentTrendStat = "pointsScored";
+    let teamState = {
+      teamStats: null,
+      shooting: null,
+      adjusted: null,
+      elo: null,
+      gamesTeams: [],
+      historical: []
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getSeason() {
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function getRecordLabel(teamStats) {
+      const wins = Number(teamStats?.wins || teamStats?.record?.wins || 0);
+      const losses = Number(teamStats?.losses || teamStats?.record?.losses || 0);
+      return `${wins}-${losses}`;
+    }
+
+    function getTeamTotals(row) {
+      return row?.teamStats || {};
+    }
+
+    function getOpponentTotals(row) {
+      return row?.opponentStats || {};
+    }
+
+    function perGame(total, games) {
+      const totalNum = Number(total || 0);
+      const gamesNum = Number(games || 0);
+      return gamesNum ? totalNum / gamesNum : 0;
+    }
+
+    function compareClass(left, right, higherBetter = true) {
+      const leftNum = Number(left);
+      const rightNum = Number(right);
+      if (!Number.isFinite(leftNum) || !Number.isFinite(rightNum) || leftNum === rightNum) return ["", ""];
+      const leftWins = higherBetter ? leftNum > rightNum : leftNum < rightNum;
+      return [leftWins ? "is-better" : "", leftWins ? "" : "is-better"];
+    }
+
+    function renderHero(season) {
+      document.getElementById("team-hero").innerHTML = `
+        <span class="eyebrow">Team Statistics</span>
+        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Team Stats</h1>
+        <p class="lead">Season summary, shooting profile, four factors, and rating context for the Wildcats.</p>
+      `;
+    }
+
+    function renderSummary(teamStats) {
+      const team = getTeamTotals(teamStats);
+      const opp = getOpponentTotals(teamStats);
+      const games = Number(teamStats?.games || 0);
+      const cards = [
+        { label: "Record", value: getRecordLabel(teamStats) },
+        { label: "PPG", value: fmtNum(perGame(team?.points?.total, games), 1) },
+        { label: "Opp PPG", value: fmtNum(perGame(opp?.points?.total, games), 1) },
+        { label: "Pace", value: fmtNum(teamStats?.pace ?? 0, 1) },
+        { label: "Possessions", value: fmtNum(perGame(team?.possessions, games), 1) }
+      ];
+
+      document.getElementById("summary-grid").innerHTML = cards.map((card) => `
+        <article class="card">
+          <div class="metric-label">${escapeHtml(card.label)}</div>
+          <div class="metric-value">${escapeHtml(card.value)}</div>
+        </article>
+      `).join("");
+    }
+
+    function renderComparison(teamStats) {
+      const seasonTeam = getTeamTotals(teamStats);
+      const seasonOpp = getOpponentTotals(teamStats);
+      const games = Number(teamStats?.games || 0);
+      const team = {
+        ppg: perGame(seasonTeam?.points?.total, games),
+        fg: Number(seasonTeam?.fieldGoals?.pct ?? 0),
+        three: Number(seasonTeam?.threePointFieldGoals?.pct ?? 0),
+        ft: Number(seasonTeam?.freeThrows?.pct ?? 0),
+        reb: perGame(seasonTeam?.rebounds?.total, games),
+        ast: perGame(seasonTeam?.assists, games),
+        tov: perGame(seasonTeam?.turnovers?.total, games),
+        stl: perGame(seasonTeam?.steals, games),
+        blk: perGame(seasonTeam?.blocks, games)
+      };
+      const opp = {
+        ppg: perGame(seasonOpp?.points?.total, games),
+        fg: Number(seasonOpp?.fieldGoals?.pct ?? 0),
+        three: Number(seasonOpp?.threePointFieldGoals?.pct ?? 0),
+        ft: Number(seasonOpp?.freeThrows?.pct ?? 0),
+        reb: perGame(seasonOpp?.rebounds?.total, games),
+        ast: perGame(seasonOpp?.assists, games),
+        tov: perGame(seasonOpp?.turnovers?.total, games),
+        stl: perGame(seasonOpp?.steals, games),
+        blk: perGame(seasonOpp?.blocks, games)
+      };
+
+      const rows = [
+        ["PPG", fmtNum(team.ppg, 1), fmtNum(opp.ppg, 1), team.ppg, opp.ppg, true],
+        ["FG%", fmtPct(team.fg), fmtPct(opp.fg), team.fg, opp.fg, true],
+        ["3P%", fmtPct(team.three), fmtPct(opp.three), team.three, opp.three, true],
+        ["FT%", fmtPct(team.ft), fmtPct(opp.ft), team.ft, opp.ft, true],
+        ["REB", fmtNum(team.reb, 1), fmtNum(opp.reb, 1), team.reb, opp.reb, true],
+        ["AST", fmtNum(team.ast, 1), fmtNum(opp.ast, 1), team.ast, opp.ast, true],
+        ["TO", fmtNum(team.tov, 1), fmtNum(opp.tov, 1), team.tov, opp.tov, false],
+        ["STL", fmtNum(team.stl, 1), fmtNum(opp.stl, 1), team.stl, opp.stl, true],
+        ["BLK", fmtNum(team.blk, 1), fmtNum(opp.blk, 1), team.blk, opp.blk, true]
+      ];
+
+      const buildCard = (title, cardRows) => `
+        <article class="card">
+          <div class="card-title">${escapeHtml(title)}</div>
+          ${cardRows.map((row) => `
+            <div class="comparison-card__row">
+              <span>${escapeHtml(row.label)}</span>
+              <span class="comparison-card__value ${row.className}">${escapeHtml(row.value)}</span>
+            </div>
+          `).join("")}
+        </article>
+      `;
+
+      const leftRows = [];
+      const rightRows = [];
+      rows.forEach((row) => {
+        const [teamClass, oppClass] = compareClass(row[3], row[4], row[5]);
+        leftRows.push({ label: row[0], value: row[1], className: teamClass });
+        rightRows.push({ label: row[0], value: row[2], className: oppClass });
+      });
+
+      document.getElementById("comparison-grid").innerHTML = [
+        buildCard("Kentucky", leftRows),
+        buildCard("Opponents", rightRows)
+      ].join("");
+    }
+
+    function renderFactors(teamStats) {
+      const seasonTeam = getTeamTotals(teamStats);
+      const seasonOpp = getOpponentTotals(teamStats);
+      const factors = [
+        {
+          label: "eFG%",
+          team: Number(seasonTeam?.fourFactors?.effectiveFieldGoalPct ?? 0),
+          opp: Number(seasonOpp?.fourFactors?.effectiveFieldGoalPct ?? 0),
+          higherBetter: true,
+          formatter: fmtPct
+        },
+        {
+          label: "TOV%",
+          team: Number(seasonTeam?.fourFactors?.turnoverRatio ?? 0),
+          opp: Number(seasonOpp?.fourFactors?.turnoverRatio ?? 0),
+          higherBetter: false,
+          formatter: fmtPct
+        },
+        {
+          label: "OReb%",
+          team: Number(seasonTeam?.fourFactors?.offensiveReboundPct ?? 0),
+          opp: Number(seasonOpp?.fourFactors?.offensiveReboundPct ?? 0),
+          higherBetter: true,
+          formatter: fmtPct
+        },
+        {
+          label: "FT Rate",
+          team: Number(seasonTeam?.fourFactors?.freeThrowRate ?? 0),
+          opp: Number(seasonOpp?.fourFactors?.freeThrowRate ?? 0),
+          higherBetter: true,
+          formatter: (value) => fmtNum(value, 2)
+        }
+      ];
+
+      document.getElementById("factors-grid").innerHTML = factors.map((factor) => {
+        const [teamClass, oppClass] = compareClass(factor.team, factor.opp, factor.higherBetter);
+        const verdict = teamClass ? "Kentucky edge" : oppClass ? "Opponent edge" : "Even";
+        return `
+          <article class="card">
+            <div class="metric-label">${escapeHtml(factor.label)}</div>
+            <div class="factor-card__row">
+              <span>Kentucky</span>
+              <span class="factor-card__value ${teamClass}">${escapeHtml(factor.formatter(factor.team))}</span>
+            </div>
+            <div class="factor-card__row">
+              <span>Opponents</span>
+              <span class="factor-card__value ${oppClass}">${escapeHtml(factor.formatter(factor.opp))}</span>
+            </div>
+            <div class="hero-support" style="margin-top: 12px;">${escapeHtml(verdict)}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function getShotTypeRows(shooting) {
+      return [
+        ["Dunks", shooting?.dunks],
+        ["Layups", shooting?.layups],
+        ["Tip-Ins", shooting?.tipIns],
+        ["Mid-Range", shooting?.twoPointJumpers],
+        ["3P Jumpers", shooting?.threePointJumpers]
+      ].map(([label, stat]) => {
+        const attempted = Number(stat?.attempted || 0);
+        const madeCount = Number(stat?.made || 0);
+        return {
+          label,
+          attempted,
+          made: madeCount,
+          pct: Number(stat?.pct ?? (attempted ? madeCount / attempted : 0)),
+          assistedPct: Number(stat?.assistedPct || 0)
+        };
+      });
+    }
+
+    function renderShooting(shooting) {
+      const rows = getShotTypeRows(shooting);
+      document.getElementById("shooting-breakdown-body").innerHTML = rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.label)}</td>
+          <td>${escapeHtml(row.made)}</td>
+          <td>${escapeHtml(row.attempted)}</td>
+          <td>${escapeHtml(fmtPct(row.pct))}</td>
+          <td>${escapeHtml(fmtPct(row.assistedPct))}</td>
+        </tr>
+      `).join("");
+
+      if (!rows.some((row) => row.attempted > 0)) {
+        document.getElementById("shooting-chart-frame").innerHTML = '<div class="empty-state">No shooting breakdown data available for this season.</div>';
+        return;
+      }
+
+      getHelpers().charts.barChart("shooting-breakdown-chart", rows.map((row) => row.label), [{
+        label: "Attempts",
+        data: rows.map((row) => row.attempted),
+        backgroundColor: ["#4A90D9", "#6AAAF5", "#92C7FF", "#F3C969", "#FFB760"]
+      }], {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      });
+    }
+
+    function renderPoints(teamStats) {
+      const seasonTeam = getTeamTotals(teamStats);
+      const games = Number(teamStats?.games || 0);
+      const ppg = perGame(seasonTeam?.points?.total, games);
+      const inPaint = perGame(seasonTeam?.points?.inPaint, games);
+      const fastBreak = perGame(seasonTeam?.points?.fastBreak, games);
+      const offTurnovers = perGame(seasonTeam?.points?.offTurnovers, games);
+      const other = Math.max(ppg - inPaint - fastBreak - offTurnovers, 0);
+      const rows = [
+        ["Points in Paint", inPaint],
+        ["Fast Break", fastBreak],
+        ["Off Turnovers", offTurnovers],
+        ["Other", other]
+      ];
+
+      document.getElementById("points-grid").innerHTML = rows.map(([label, value]) => `
+        <article class="card">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${escapeHtml(fmtNum(value, 1))}</div>
+          <div class="hero-support">Per game</div>
+        </article>
+      `).join("");
+
+      getHelpers().charts.donutChart("points-sources-chart", rows.map((row) => row[0]), rows.map((row) => row[1]), {
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#DCEBFF" }
+          }
+        }
+      });
+    }
+
+    function eloContext(elo) {
+      const rating = Number(elo?.rating ?? elo?.elo ?? 0);
+      if (rating >= 1800) return "Top 25 nationally";
+      if (rating >= 1650) return "Above average";
+      if (rating >= 1500) return "Nationally competitive";
+      return "Still building momentum";
+    }
+
+    function renderRatings(adjustedRows, eloRows) {
+      const adjusted = safeArray(adjustedRows)[0] || adjustedRows || {};
+      const elo = safeArray(eloRows)[0] || {};
+      const off = Number(adjusted?.offensiveRating ?? adjusted?.offRtg ?? 0);
+      const def = Number(adjusted?.defensiveRating ?? adjusted?.defRtg ?? 0);
+      const net = Number(adjusted?.netRating ?? (off - def) ?? 0);
+      const offRank = teamState.adjustedRanks?.offense ?? "--";
+      const defRank = teamState.adjustedRanks?.defense ?? "--";
+      const netRank = teamState.adjustedRanks?.net ?? "--";
+      const eloRating = Number(elo?.elo ?? elo?.rating ?? 0);
+
+      document.getElementById("ratings-grid").innerHTML = `
+        <article class="card">
+          <div class="metric-label">Adjusted Offense</div>
+          <div class="metric-value">${escapeHtml(fmtNum(off, 1))}</div>
+          <div class="hero-support">Rank #${escapeHtml(offRank)}</div>
+          <div class="rating-card__row"><span>vs 100 avg</span><span>${escapeHtml(fmtNum(off - 100, 1))}</span></div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Adjusted Defense</div>
+          <div class="metric-value">${escapeHtml(fmtNum(def, 1))}</div>
+          <div class="hero-support">Rank #${escapeHtml(defRank)}</div>
+          <div class="rating-card__row"><span>vs 100 avg</span><span>${escapeHtml(fmtNum(100 - def, 1))}</span></div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Net Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(net, 1))}</div>
+          <div class="hero-support">Rank #${escapeHtml(netRank)}</div>
+          <div class="rating-card__row"><span>Balance</span><span>${escapeHtml(net >= 0 ? "Positive" : "Negative")}</span></div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Elo</div>
+          <div class="metric-value">${escapeHtml(eloRating ? fmtNum(eloRating, 0) : "--")}</div>
+          <div class="hero-support">${escapeHtml(eloContext(elo))}</div>
+          <div class="rating-card__row"><span>Snapshot</span><span>${escapeHtml(elo?.date ? getHelpers().utils.formatDate(elo.date) : "Season")}</span></div>
+        </article>
+      `;
+    }
+
+    function getGameStatsRow(row) {
+      return row?.teamStats || row || {};
+    }
+
+    function trendValue(row, key) {
+      const stats = getGameStatsRow(row);
+      if (key === "pointsScored") return Number(stats?.points?.total ?? stats?.points ?? 0);
+      if (key === "pointsAllowed") return Number(row?.opponentStats?.points?.total ?? stats?.opponentPoints ?? 0);
+      if (key === "fgPct") return Number(stats?.fieldGoals?.pct ?? 0) * 100;
+      if (key === "threePct") return Number(stats?.threePointFieldGoals?.pct ?? 0) * 100;
+      return 0;
+    }
+
+    function renderTrendChart() {
+      const rows = safeArray(teamState.gamesTeams);
+      if (!rows.length) {
+        document.getElementById("trend-chart-frame").innerHTML = '<div class="empty-state">No game-by-game trend data available for this season.</div>';
+        return;
+      }
+
+      const labelMap = {
+        pointsScored: "Points Scored",
+        pointsAllowed: "Points Allowed",
+        fgPct: "FG%",
+        threePct: "3P%"
+      };
+      const labels = rows.map((row, index) => row?.opponent || row?.opponentTeam || `Game ${index + 1}`);
+      const data = rows.map((row) => trendValue(row, currentTrendStat));
+
+      getHelpers().charts.lineChart("team-trend-chart", labels, [{
+        label: labelMap[currentTrendStat],
+        data,
+        borderColor: "#4A90D9",
+        backgroundColor: "rgba(74, 144, 217, 0.16)",
+        fill: true
+      }], {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: currentTrendStat.endsWith("Pct")
+              ? { callback(value) { return `${value}%`; } }
+              : undefined
+          }
+        }
+      });
+    }
+
+    function renderHistorical() {
+      document.getElementById("historical-body").innerHTML = teamState.historical.map((row) => `
+        <tr>
+          <td>${escapeHtml(seasonLabel(row.season))}</td>
+          <td>${escapeHtml(getRecordLabel(row.teamStats))}</td>
+          <td>${escapeHtml(fmtNum(perGame(getTeamTotals(row.teamStats)?.points?.total, row.teamStats?.games), 1))}</td>
+          <td>${escapeHtml(fmtNum(perGame(getOpponentTotals(row.teamStats)?.points?.total, row.teamStats?.games), 1))}</td>
+          <td>${escapeHtml(fmtPct(getTeamTotals(row.teamStats)?.fieldGoals?.pct ?? 0))}</td>
+          <td>${escapeHtml(fmtPct(getTeamTotals(row.teamStats)?.threePointFieldGoals?.pct ?? 0))}</td>
+          <td>${escapeHtml(fmtNum(row.teamStats?.pace ?? 0, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.adjusted?.offensiveRating ?? row.adjusted?.offRtg ?? 0, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.adjusted?.defensiveRating ?? row.adjusted?.defRtg ?? 0, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.adjusted?.netRating ?? ((row.adjusted?.offensiveRating ?? row.adjusted?.offRtg ?? 0) - (row.adjusted?.defensiveRating ?? row.adjusted?.defRtg ?? 0)), 1))}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadHistorical() {
+      const season = getSeason();
+      const rows = [{
+        season,
+        teamStats: teamState.teamStats || {},
+        adjusted: teamState.adjusted || {},
+        adjustedRanks: teamState.adjustedRanks || {}
+      }];
+      teamState.historical = rows.slice();
+      renderHistorical();
+
+      for (const year of HISTORICAL_SEASONS) {
+        if (year === season) continue;
+        try {
+          const [teamStatsResponse, adjustedSummary] = await Promise.all([
+            getHelpers().api.apiFetch("/stats/team/season", { team: TEAM_NAME, season: year }),
+            getHelpers().api.getAdjustedRatingsSummary(TEAM_NAME, year)
+          ]);
+          rows.push({
+            season: year,
+            teamStats: safeArray(teamStatsResponse)[0] || {},
+            adjusted: adjustedSummary?.team || {},
+            adjustedRanks: adjustedSummary?.ranks || {}
+          });
+        } catch (error) {
+          rows.push({ season: year, teamStats: {}, adjusted: {}, adjustedRanks: {} });
+        }
+        teamState.historical = rows.slice();
+        renderHistorical();
+      }
+    }
+
+    function bindTrendControls() {
+      document.querySelectorAll("[data-trend-stat]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentTrendStat = button.dataset.trendStat;
+          document.querySelectorAll("[data-trend-stat]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderTrendChart();
+        });
+      });
+    }
+
+    async function loadTeamStatsPage() {
+      const season = getSeason();
+      const { api, printer } = getHelpers();
+
+      bindTrendControls();
+      printer.bindExportButtons?.({ pageName: "team-stats", elementId: "main-content" });
+
+      try {
+        const [teamStatsResponse, shootingResponse, adjustedSummary, eloResponse, gamesTeamsResponse] = await Promise.all([
+          api.apiFetch("/stats/team/season", { team: TEAM_NAME, season }),
+          api.apiFetch("/stats/team/shooting/season", { team: TEAM_NAME, season }),
+          api.getAdjustedRatingsSummary(TEAM_NAME, season),
+          api.apiFetch("/ratings/elo", { team: TEAM_NAME, season }),
+          api.apiFetch("/games/teams", { team: TEAM_NAME, season })
+        ]);
+
+        teamState = {
+          teamStats: safeArray(teamStatsResponse)[0] || {},
+          shooting: safeArray(shootingResponse)[0] || {},
+          adjusted: adjustedSummary?.team || {},
+          adjustedRanks: adjustedSummary?.ranks || {},
+          elo: safeArray(eloResponse)[0] || {},
+          gamesTeams: safeArray(gamesTeamsResponse),
+          historical: []
+        };
+
+        renderHero(season);
+        renderSummary(teamState.teamStats);
+        renderComparison(teamState.teamStats);
+        renderFactors(teamState.teamStats);
+        renderShooting(teamState.shooting);
+        renderPoints(teamState.teamStats);
+        renderRatings(teamState.adjusted, eloResponse);
+        renderTrendChart();
+        await loadHistorical();
+      } catch (error) {
+        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load team statistics. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadTeamStatsPage);
+  </script>
+</body>
+</html>

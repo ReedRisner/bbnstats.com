@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Poll Rankings History</title>
+  <meta name="description" content="Kentucky AP and Coaches Poll ranking history with weekly charts and rankings tables.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .rankings-summary-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .poll-toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .rankings-table th:first-child,
+    .rankings-table td:first-child {
+      min-width: 72px;
+    }
+  </style>
+</head>
+<body data-page="rankings">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="rankings-hero" class="hero-banner">
+        <span class="eyebrow">Poll Rankings History</span>
+        <h1 class="hero-title">Loading Poll Rankings</h1>
+        <p class="lead">Weekly AP and Coaches Poll movement for Kentucky in the selected season.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="rankings-summary-grid" class="rankings-summary-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Poll Chart</h2>
+          <p class="section-copy">Weekly rank history with `#1` at the top and `NR` shown below the Top 25 line.</p>
+        </div>
+      </div>
+      <div class="poll-toggle-row">
+        <button class="btn btn--secondary is-active" type="button" data-poll-type="ap">AP Poll</button>
+        <button class="btn btn--ghost" type="button" data-poll-type="coaches">Coaches Poll</button>
+      </div>
+      <div class="chart-shell">
+        <div class="chart-wrap">
+          <div class="chart-frame" id="rankings-chart-frame">
+            <canvas id="rankings-chart" aria-label="Kentucky poll rankings chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Rankings Table</h2>
+          <p class="section-copy">Weekly poll entries with points and first-place votes.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table rankings-table">
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Date</th>
+                <th>Poll</th>
+                <th>Ranking</th>
+                <th>Points</th>
+                <th>1st Place Votes</th>
+              </tr>
+            </thead>
+            <tbody id="rankings-body">
+              <tr><td colspan="6">Loading rankings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    let currentPollType = "ap";
+    let allRankings = [];
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getSeason() {
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function fmtDate(value) {
+      return getHelpers().utils.formatDate ? getHelpers().utils.formatDate(value) : value;
+    }
+
+    function filterRankingsByPoll() {
+      return allRankings
+        .filter((row) => currentPollType === "ap"
+          ? String(row?.pollType || "").toLowerCase().includes("ap")
+          : String(row?.pollType || "").toLowerCase().includes("coach"))
+        .sort((a, b) => Number(a?.week || 0) - Number(b?.week || 0));
+    }
+
+    function renderHero(season) {
+      document.getElementById("rankings-hero").innerHTML = `
+        <span class="eyebrow">Poll Rankings History</span>
+        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Rankings</h1>
+        <p class="lead">Track Kentucky’s week-by-week movement in the AP and Coaches polls.</p>
+      `;
+    }
+
+    function renderSummaryCards() {
+      const rows = filterRankingsByPoll();
+      const highest = rows.length ? Math.min(...rows.map((row) => Number(row.ranking || 26))) : null;
+      const weeksRanked = rows.filter((row) => Number(row.ranking || 26) <= 25).length;
+      const current = rows.length ? Number(rows[rows.length - 1].ranking || 26) : null;
+
+      const cards = [
+        { label: "Highest Ranking", value: highest && highest <= 25 ? `#${highest}` : "NR" },
+        { label: "Weeks Ranked", value: weeksRanked },
+        { label: "Current Ranking", value: current && current <= 25 ? `#${current}` : "NR" }
+      ];
+
+      document.getElementById("rankings-summary-grid").innerHTML = cards.map((card) => `
+        <article class="card">
+          <div class="metric-label">${escapeHtml(card.label)}</div>
+          <div class="metric-value">${escapeHtml(card.value)}</div>
+        </article>
+      `).join("");
+    }
+
+    function renderChart() {
+      const rows = filterRankingsByPoll();
+      const frame = document.getElementById("rankings-chart-frame");
+
+      if (!rows.length) {
+        frame.innerHTML = '<div class="empty-state">No rankings are available for this poll in the selected season.</div>';
+        return;
+      }
+
+      frame.innerHTML = '<canvas id="rankings-chart" aria-label="Kentucky poll rankings chart"></canvas>';
+      const labels = rows.map((row) => `Week ${row.week}`);
+      const data = rows.map((row) => {
+        const ranking = Number(row.ranking || 26);
+        return ranking > 25 ? 26 : ranking;
+      });
+
+      getHelpers().charts.lineChart("rankings-chart", labels, [{
+        label: currentPollType === "ap" ? "AP Ranking" : "Coaches Ranking",
+        data,
+        borderColor: "#4A90D9",
+        backgroundColor: "rgba(74, 144, 217, 0.18)",
+        fill: true
+      }], {
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(context) {
+                return context.raw === 26 ? "NR" : `#${context.raw}`;
+              },
+              afterLabel(context) {
+                const row = rows[context.dataIndex];
+                const parts = [];
+                if (row?.points != null) parts.push(`Points: ${row.points}`);
+                if (row?.firstPlaceVotes != null) parts.push(`1st Place Votes: ${row.firstPlaceVotes}`);
+                return parts;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            reverse: true,
+            min: 1,
+            max: 26,
+            ticks: {
+              stepSize: 5,
+              callback(value) {
+                return Number(value) === 26 ? "NR" : `#${value}`;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const rows = filterRankingsByPoll();
+      document.getElementById("rankings-body").innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.week)}</td>
+          <td>${escapeHtml(fmtDate(row.pollDate))}</td>
+          <td>${escapeHtml(row.pollType)}</td>
+          <td>${escapeHtml(Number(row.ranking || 26) <= 25 ? `#${row.ranking}` : "NR")}</td>
+          <td>${escapeHtml(row.points ?? "--")}</td>
+          <td>${escapeHtml(row.firstPlaceVotes ?? 0)}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="6">No rankings are available for this poll in the selected season.</td></tr>';
+    }
+
+    function renderAll() {
+      renderSummaryCards();
+      renderChart();
+      renderTable();
+    }
+
+    function bindPollToggle() {
+      document.querySelectorAll("[data-poll-type]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentPollType = button.dataset.pollType;
+          document.querySelectorAll("[data-poll-type]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderAll();
+        });
+      });
+    }
+
+    async function loadRankingsPage() {
+      const season = getSeason();
+      renderHero(season);
+      bindPollToggle();
+      getHelpers().printer.bindExportButtons?.({ pageName: "rankings", elementId: "main-content" });
+
+      try {
+        const response = await getHelpers().api.apiFetch("/rankings", { team: TEAM_NAME, season });
+        allRankings = safeArray(response);
+        renderAll();
+      } catch (error) {
+        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load rankings. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadRankingsPage);
+  </script>
+</body>
+</html>

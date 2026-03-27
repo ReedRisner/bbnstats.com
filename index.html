@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Kentucky Basketball Dashboard</title>
+  <meta name="description" content="Live Kentucky Wildcats basketball dashboard with team stats, schedule results, rankings, ratings, and player leaders.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .dashboard-page .hero-banner {
+      min-height: 360px;
+    }
+
+    .dashboard-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+      gap: 28px;
+      align-items: end;
+    }
+
+    .hero-rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      min-width: 88px;
+      min-height: 38px;
+      padding: 0 16px;
+      border: 1px solid rgba(241, 196, 15, 0.35);
+      border-radius: 999px;
+      background: rgba(241, 196, 15, 0.12);
+      color: #ffe98a;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .hero-meta-grid,
+    .stats-mini-grid,
+    .leaders-grid,
+    .quick-links-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stats-mini-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .leaders-grid,
+    .quick-links-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dashboard-stat-card {
+      min-height: 148px;
+    }
+
+    .dashboard-mini-card {
+      min-height: 124px;
+      padding: 18px;
+    }
+
+    .dashboard-mini-card .metric-value {
+      font-size: clamp(1.4rem, 2vw, 2rem);
+    }
+
+    .last-games-row {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(220px, 260px);
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .game-card {
+      min-height: 176px;
+    }
+
+    .game-card__top,
+    .game-card__bottom,
+    .leader-card__top,
+    .leader-card__bottom {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .game-card__bottom,
+    .leader-card__bottom {
+      align-items: end;
+      margin-top: auto;
+    }
+
+    .game-card__opponent,
+    .leader-card__name {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .game-card__meta,
+    .leader-card__meta,
+    .hero-support {
+      color: var(--text-secondary);
+    }
+
+    .next-game-card {
+      min-height: 100%;
+    }
+
+    .next-game-card .metric-value {
+      font-size: clamp(1.8rem, 2.5vw, 2.8rem);
+    }
+
+    .chart-panel {
+      min-height: 420px;
+    }
+
+    .chart-panel .chart-frame {
+      min-height: 320px;
+    }
+
+    .dashboard-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24px;
+    }
+
+    .quick-link-card {
+      min-height: 140px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .section-state {
+      min-height: 220px;
+    }
+
+    .leader-value {
+      color: var(--uk-light-blue);
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-hero,
+      .leaders-grid,
+      .quick-links-grid,
+      .stats-mini-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-hero,
+      .hero-meta-grid,
+      .leaders-grid,
+      .quick-links-grid,
+      .stats-mini-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-actions {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body class="dashboard-page" data-page="index">
+  <main id="main-content" class="page-shell">
+    <div class="dashboard-actions export-buttons">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="hero-section" class="hero-banner">
+        <div class="dashboard-hero">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">Home Dashboard</span>
+              <div class="skeleton skeleton--title"></div>
+            </div>
+            <div class="stack">
+              <div class="skeleton skeleton--stat"></div>
+              <div class="skeleton skeleton--text"></div>
+              <div class="skeleton skeleton--text"></div>
+            </div>
+          </div>
+          <div class="hero-meta-grid">
+            <div class="card dashboard-stat-card">
+              <div class="metric-label">Record</div>
+              <div class="skeleton skeleton--stat"></div>
+            </div>
+            <div class="card dashboard-stat-card">
+              <div class="metric-label">AP Rank</div>
+              <div class="skeleton skeleton--stat"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Season Snapshot</h2>
+          <p class="section-copy">Quick look at Kentucky's current record, scoring profile, and core team production.</p>
+        </div>
+      </div>
+      <div id="record-cards" class="card-grid">
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Team Trends</h2>
+          <p class="section-copy">Shooting, rebounding, and ball movement numbers for the full season.</p>
+        </div>
+      </div>
+      <div id="summary-cards" class="stats-mini-grid">
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card dashboard-mini-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Efficiency</h2>
+          <p class="section-copy">Adjusted efficiency profile and Elo context for the season.</p>
+        </div>
+      </div>
+      <div id="efficiency-grid" class="card-grid">
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card dashboard-stat-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+      </div>
+    </section>
+
+    <section class="section split-grid">
+      <div class="stack stack--lg">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Last 5 Games</h2>
+            <p class="section-copy">Most recent results with direct links to each game page.</p>
+          </div>
+        </div>
+        <div id="last-games" class="last-games-row">
+          <div class="card game-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--stat"></div></div>
+          <div class="card game-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--stat"></div></div>
+          <div class="card game-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--stat"></div></div>
+        </div>
+      </div>
+
+      <div class="stack stack--lg">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Next Game</h2>
+            <p class="section-copy">Upcoming matchup, venue details, and schedule context.</p>
+          </div>
+        </div>
+        <div id="next-game" class="card next-game-card">
+          <div class="skeleton skeleton--title"></div>
+          <div class="skeleton skeleton--stat"></div>
+          <div class="skeleton skeleton--text"></div>
+          <div class="skeleton skeleton--text"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Top Players</h2>
+          <p class="section-copy">Season leaders in scoring, rebounding, and assists.</p>
+        </div>
+      </div>
+      <div id="leaders-grid" class="leaders-grid">
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+      </div>
+    </section>
+
+    <section class="section split-grid">
+      <div class="chart-shell chart-panel">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">AP Poll History</h2>
+            <p class="chart-copy">Weekly AP ranking movement through the current season. Unranked weeks display as NR.</p>
+          </div>
+        </div>
+        <div id="rankings-state" class="chart-wrap">
+          <div class="chart-frame">
+            <div class="chart-skeleton skeleton"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack stack--lg">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Quick Links</h2>
+            <p class="section-copy">Jump straight into roster, schedule, detailed stats, and comparison pages.</p>
+          </div>
+        </div>
+        <div id="quick-links" class="quick-links-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)} Season`;
+    }
+
+    function safeArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function createSectionState(message, retryable = true) {
+      return `
+        <div class="error-state section-state">
+          <h3 class="card-title">Unable to load data</h3>
+          <p>${escapeHtml(message || "Please try again.")}</p>
+          ${retryable ? '<button class="btn btn--secondary" type="button" id="retry-dashboard">Retry</button>' : ""}
+        </div>
+      `;
+    }
+
+    function createMetricCard(label, value, meta, accentClass = "accent-blue") {
+      return `
+        <article class="card dashboard-stat-card metric-card">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value ${accentClass}">${escapeHtml(value)}</div>
+          <div class="card-copy">${escapeHtml(meta)}</div>
+        </article>
+      `;
+    }
+
+    function createMiniCard(label, value) {
+      return `
+        <article class="card dashboard-mini-card metric-card">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${escapeHtml(value)}</div>
+        </article>
+      `;
+    }
+
+    function getOpponentName(game) {
+      return game.homeTeam === TEAM_NAME ? game.awayTeam : game.homeTeam;
+    }
+
+    function getGameMargin(game) {
+      const teamScore = game.homeTeam === TEAM_NAME ? game.homePoints : game.awayPoints;
+      const oppScore = game.homeTeam === TEAM_NAME ? game.awayPoints : game.homePoints;
+      if (typeof teamScore !== "number" || typeof oppScore !== "number") {
+        return "";
+      }
+      const diff = teamScore - oppScore;
+      return diff > 0 ? `Won by ${diff}` : diff < 0 ? `Lost by ${Math.abs(diff)}` : "Tied";
+    }
+
+    function getCurrentStreak(finalGames) {
+      if (!finalGames.length) {
+        return "No games yet";
+      }
+
+      let streakType = null;
+      let count = 0;
+
+      for (let i = finalGames.length - 1; i >= 0; i -= 1) {
+        const result = finalGames[i];
+        const outcome = result.homeTeam === TEAM_NAME
+          ? (result.homePoints > result.awayPoints ? "W" : "L")
+          : (result.awayPoints > result.homePoints ? "W" : "L");
+
+        if (!streakType) {
+          streakType = outcome;
+          count = 1;
+          continue;
+        }
+
+        if (outcome === streakType) {
+          count += 1;
+        } else {
+          break;
+        }
+      }
+
+      return `${streakType}${count}`;
+    }
+
+    function getLatestApRank(rankings) {
+      const apRankings = safeArray(rankings)
+        .filter((item) => String(item.pollType || "").toLowerCase().includes("ap"))
+        .sort((a, b) => (a.week || 0) - (b.week || 0));
+
+      return apRankings.length ? apRankings[apRankings.length - 1] : null;
+    }
+
+    function renderHero(teamStats, rankings, season) {
+      const hero = document.getElementById("hero-section");
+      const latestAp = getLatestApRank(rankings);
+      const rankLabel = latestAp && latestAp.ranking ? `AP #${latestAp.ranking}` : "AP NR";
+
+      hero.innerHTML = `
+        <div class="dashboard-hero">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">Kentucky Wildcats</span>
+              <h1 class="hero-title">Kentucky Basketball</h1>
+              <p class="lead">${escapeHtml(seasonLabel(season))} stats for Kentucky Basketball</p>
+            </div>
+            <div class="inline-meta">
+
+            </div>
+          </div>
+          <div class="hero-meta-grid">
+            <article class="card dashboard-stat-card metric-card">
+              <div class="metric-label">Record</div>
+              <div class="hero-stat-value">${escapeHtml(`${teamStats?.wins ?? 0}-${teamStats?.losses ?? 0}`)}</div>
+              <div class="card-copy">${escapeHtml(`${teamStats?.games ?? 0} games played`)}</div>
+            </article>
+            <article class="card dashboard-stat-card metric-card">
+              <div class="metric-label">Current AP Rank</div>
+              <div class="hero-stat-value">${escapeHtml(latestAp?.ranking ? `#${latestAp.ranking}` : "NR")}</div>
+              <div class="card-copy">${escapeHtml(latestAp ? `Week ${latestAp.week || "--"} poll update` : "Not ranked in latest AP poll")}</div>
+            </article>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRecordCards(teamStats, games) {
+      const finalGames = safeArray(games).filter((game) => game.status === "final");
+      const recordCards = document.getElementById("record-cards");
+      const pointsFor = teamStats?.teamStats?.points?.total || 0;
+      const pointsAgainst = teamStats?.opponentStats?.points?.total || 0;
+      const gamesPlayed = teamStats?.games || 0;
+
+      recordCards.innerHTML = [
+        createMetricCard("W-L Record", `${teamStats?.wins ?? 0}-${teamStats?.losses ?? 0}`, `${gamesPlayed} total games`, "accent-blue"),
+        createMetricCard("PPG", gamesPlayed ? (pointsFor / gamesPlayed).toFixed(1) : "0.0", "Points scored per game", "accent-green"),
+        createMetricCard("Opp PPG", gamesPlayed ? (pointsAgainst / gamesPlayed).toFixed(1) : "0.0", "Points allowed per game", "accent-red"),
+        createMetricCard("Current Streak", getCurrentStreak(finalGames), "Based on most recent final results", "accent-yellow")
+      ].join("");
+    }
+
+    function renderSummaryCards(teamStats) {
+      const container = document.getElementById("summary-cards");
+      const stats = teamStats?.teamStats || {};
+      container.innerHTML = [
+        createMiniCard("FG%", getHelpers().utils.fmtPct(stats.fieldGoals?.pct)),
+        createMiniCard("3P%", getHelpers().utils.fmtPct(stats.threePointFieldGoals?.pct)),
+        createMiniCard("FT%", getHelpers().utils.fmtPct(stats.freeThrows?.pct)),
+        createMiniCard("Rebounds/G", teamStats?.games ? (stats.rebounds?.total / teamStats.games).toFixed(1) : "0.0"),
+        createMiniCard("Assists/G", teamStats?.games ? (stats.assists / teamStats.games).toFixed(1) : "0.0"),
+        createMiniCard("Turnovers/G", teamStats?.games ? (stats.turnovers?.total / teamStats.games).toFixed(1) : "0.0")
+      ].join("");
+    }
+
+    function renderEfficiencyCards(adjustedRatings, eloRatings, adjustedRanks = {}) {
+      const container = document.getElementById("efficiency-grid");
+      const adjusted = safeArray(adjustedRatings)[0] || adjustedRatings || {};
+      const elo = safeArray(eloRatings)[0] || {};
+      const offenseMeta = adjustedRanks?.offense ? `National rank #${adjustedRanks.offense}` : "National rank unavailable";
+      const defenseMeta = adjustedRanks?.defense ? `National rank #${adjustedRanks.defense}` : "National rank unavailable";
+      const netMeta = adjustedRanks?.net ? `National rank #${adjustedRanks.net}` : "National rank unavailable";
+
+      container.innerHTML = [
+        createMetricCard("Adj Off Rating", getHelpers().utils.fmtNum(adjusted.offensiveRating, 1), offenseMeta, "accent-blue"),
+        createMetricCard("Adj Def Rating", getHelpers().utils.fmtNum(adjusted.defensiveRating, 1), defenseMeta, "accent-green"),
+        createMetricCard("Net Rating", getHelpers().utils.fmtNum(adjusted.netRating, 1), netMeta, "accent-yellow"),
+        createMetricCard("Elo", getHelpers().utils.fmtNum(elo.elo, 0), "Program strength rating", "accent-blue")
+      ].join("");
+    }
+
+    function renderLastGames(games) {
+      const container = document.getElementById("last-games");
+      const finalGames = safeArray(games)
+        .filter((game) => game.status === "final")
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .slice(-5)
+        .reverse();
+
+      if (!finalGames.length) {
+        container.innerHTML = '<div class="empty-state section-state"><h3 class="card-title">No completed games</h3><p>Results will appear here once Kentucky has played a final game for this season.</p></div>';
+        return;
+      }
+
+      container.innerHTML = finalGames.map((game) => {
+        const result = getHelpers().utils.getResult(game, TEAM_NAME);
+        const isWin = result.startsWith("W");
+        return `
+          <a class="link-card" href="game.html?id=${encodeURIComponent(game.id)}">
+            <article class="card game-card stack stack--lg">
+              <div class="game-card__top">
+                <div>
+                  <div class="metric-label">${escapeHtml(getHelpers().utils.formatDate(game.startDate))}</div>
+                  <div class="game-card__opponent">${escapeHtml(getOpponentName(game))}</div>
+                  <div class="game-card__meta">${escapeHtml(game.neutralSite ? "Neutral Site" : game.homeTeam === TEAM_NAME ? "Home" : "Away")}</div>
+                </div>
+                <span class="badge ${isWin ? "badge--green" : "badge--red"}">${escapeHtml(result.split(" ")[0])}</span>
+              </div>
+              <div class="game-card__bottom">
+                <div>
+                  <div class="metric-value">${escapeHtml(result.replace(/^.\s/, ""))}</div>
+                  <div class="game-card__meta">${escapeHtml(getGameMargin(game))}</div>
+                </div>
+                <span class="pill">Box Score</span>
+              </div>
+            </article>
+          </a>
+        `;
+      }).join("");
+    }
+
+    function renderNextGame(games) {
+      const container = document.getElementById("next-game");
+      const nextGame = safeArray(games)
+        .filter((game) => game.status === "scheduled")
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
+
+      if (!nextGame) {
+        container.innerHTML = `
+          <div class="empty-state section-state">
+            <h3 class="card-title">No scheduled game</h3>
+            <p>The API does not currently list an upcoming Kentucky game for this season.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="stack stack--lg">
+          <div>
+            <div class="metric-label">Next Game</div>
+            <div class="metric-value">${escapeHtml(getOpponentName(nextGame))}</div>
+          </div>
+          <div class="stack stack--sm">
+            <div class="inline-meta"><span class="badge badge--blue">${escapeHtml(nextGame.homeTeam === TEAM_NAME ? "Home" : nextGame.neutralSite ? "Neutral" : "Away")}</span></div>
+            <div class="card-copy">${escapeHtml(getHelpers().utils.formatDate(nextGame.startDate) || "Date TBD")}${nextGame.startTimeTbd ? " | Time TBD" : ""}</div>
+            <div class="card-copy">${escapeHtml(nextGame.venue || "Venue TBD")}${nextGame.city ? ` | ${nextGame.city}${nextGame.state ? `, ${nextGame.state}` : ""}` : ""}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function getLeader(players, statKey, label) {
+      const getStatValue = (player) => {
+        if (statKey === "rebounds") {
+          return Number(player?.rebounds?.total || 0);
+        }
+
+        return Number(player?.[statKey] || 0);
+      };
+
+      const list = safeArray(players).slice().sort((a, b) => getStatValue(b) - getStatValue(a));
+      const leader = list[0];
+
+      if (!leader) {
+        return null;
+      }
+
+      const games = Number(leader.games || 0);
+      const rawValue = getStatValue(leader);
+      const value = games ? (rawValue / games).toFixed(1) : "0.0";
+
+      return {
+        label,
+        athleteId: leader.athleteId,
+        name: leader.name,
+        position: leader.position || "N/A",
+        value
+      };
+    }
+
+    function renderLeaders(players) {
+      const container = document.getElementById("leaders-grid");
+      const leaders = [
+        getLeader(players, "points", "PTS Leader"),
+        getLeader(players, "rebounds", "REB Leader"),
+        getLeader(players, "assists", "AST Leader")
+      ].filter(Boolean);
+
+      if (!leaders.length) {
+        container.innerHTML = '<div class="empty-state section-state"><h3 class="card-title">No player data</h3><p>Season player leaders will show here when the API returns roster statistics.</p></div>';
+        return;
+      }
+
+      container.innerHTML = leaders.map((leader) => `
+        <a class="link-card" href="player.html?id=${encodeURIComponent(leader.athleteId)}&season=${encodeURIComponent(getHelpers().utils.getSeason())}">
+          <article class="card stack stack--lg">
+            <div class="leader-card__top">
+              <div>
+                <div class="metric-label">${escapeHtml(leader.label)}</div>
+                <div class="leader-card__name">${escapeHtml(leader.name)}</div>
+                <div class="leader-card__meta">${escapeHtml(leader.position)}</div>
+              </div>
+              <span class="badge badge--blue">Profile</span>
+            </div>
+            <div class="leader-card__bottom">
+              <div>
+                <div class="leader-value">${escapeHtml(leader.value)}</div>
+                <div class="leader-card__meta">Per game</div>
+              </div>
+            </div>
+          </article>
+        </a>
+      `).join("");
+    }
+
+    function renderRankingsChart(rankings) {
+      const state = document.getElementById("rankings-state");
+      const apRankings = safeArray(rankings)
+        .filter((item) => String(item.pollType || "").toLowerCase().includes("ap"))
+        .sort((a, b) => (a.week || 0) - (b.week || 0));
+
+      if (!apRankings.length) {
+        state.innerHTML = '<div class="chart-empty"><h3 class="card-title">No AP poll data</h3><p>Kentucky does not have AP poll entries available for this season.</p></div>';
+        return;
+      }
+
+      state.innerHTML = `
+        <div class="chart-wrap">
+          <div class="chart-frame">
+            <canvas id="rankings-chart" aria-label="AP poll history chart"></canvas>
+          </div>
+        </div>
+      `;
+
+      const labels = apRankings.map((item) => `Week ${item.week}`);
+      const values = apRankings.map((item) => item.ranking || 26);
+
+      getHelpers().charts.lineChart("rankings-chart", labels, [
+        {
+          label: "AP Ranking",
+          data: values,
+          borderColor: "#4A90D9",
+          backgroundColor: "rgba(74, 144, 217, 0.18)",
+          fill: true
+        }
+      ], {
+        scales: {
+          y: {
+            reverse: true,
+            min: 1,
+            max: 26,
+            ticks: {
+              stepSize: 4,
+              callback(value) {
+                return value === 26 ? "NR" : `#${value}`;
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label(context) {
+                return context.raw === 26 ? "NR" : `#${context.raw}`;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderQuickLinks() {
+      const links = [
+        { href: "players.html", title: "Roster", copy: "Full player list with bio info and season averages." },
+        { href: "schedule.html", title: "Schedule", copy: "Results, future games, and direct game page links." },
+        { href: "stats.html", title: "Player Stats", copy: "Sortable traditional, advanced, and shooting tables." },
+        { href: "team-stats.html", title: "Team Stats", copy: "Four factors, trends, and shooting breakdowns." },
+        { href: "compare.html", title: "Compare", copy: "Side-by-side player comparison across seasons." },
+        { href: "ratings.html", title: "Ratings", copy: "Adjusted efficiency and Elo tracking." }
+      ];
+
+      document.getElementById("quick-links").innerHTML = links.map((link) => `
+        <a class="link-card" href="${escapeHtml(link.href)}">
+          <article class="card quick-link-card stack">
+            <div class="card-title">${escapeHtml(link.title)}</div>
+            <p class="card-copy">${escapeHtml(link.copy)}</p>
+            <span class="pill">Open Page</span>
+          </article>
+        </a>
+      `).join("");
+    }
+
+    function renderSectionError(targetId, title, message, retryable = false) {
+      const target = document.getElementById(targetId);
+
+      if (!target) {
+        return;
+      }
+
+      if (targetId === "rankings-state") {
+        target.innerHTML = `
+          <div class="chart-error">
+            <h3 class="card-title">${escapeHtml(title)}</h3>
+            <p>${escapeHtml(message)}</p>
+          </div>
+        `;
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="error-state section-state">
+          <h3 class="card-title">${escapeHtml(title)}</h3>
+          <p>${escapeHtml(message)}</p>
+          ${retryable ? `<button class="btn btn--secondary" type="button" data-retry-target="${escapeHtml(targetId)}">Retry</button>` : ""}
+        </div>
+      `;
+    }
+
+    async function loadSection(requestFn, onSuccess, onError) {
+      try {
+        const data = await requestFn();
+        onSuccess(data);
+        return data;
+      } catch (error) {
+        onError(error);
+        return null;
+      }
+    }
+
+    async function loadDashboard() {
+      const { api, utils, printer } = getHelpers();
+      const season = typeof utils.getSeason === "function" ? utils.getSeason() : 2026;
+
+      renderQuickLinks();
+      printer.bindExportButtons({ pageName: "dashboard", elementId: "main-content" });
+      const rankingsResponse = await loadSection(
+        () => api.apiFetch("/rankings", { team: TEAM_NAME, season }),
+        (data) => {
+          renderRankingsChart(safeArray(data));
+        },
+        (error) => {
+          renderSectionError("rankings-state", "Unable to load rankings", error?.message || "Please try again later.");
+        }
+      );
+
+      const teamStatsResponse = await loadSection(
+        () => api.apiFetch("/stats/team/season", { team: TEAM_NAME, season }),
+        (data) => {
+          const teamStats = safeArray(data)[0] || {};
+          renderHero(teamStats, safeArray(rankingsResponse), season);
+          renderSummaryCards(teamStats);
+        },
+        (error) => {
+          const message = error?.message || "Please try again later.";
+          document.getElementById("hero-section").innerHTML = createSectionState(message, false);
+          renderSectionError("summary-cards", "Unable to load team trends", message);
+        }
+      );
+
+      const gamesResponse = await loadSection(
+        () => api.apiFetch("/games", { team: TEAM_NAME, season }),
+        (data) => {
+          const games = safeArray(data);
+          renderLastGames(games);
+          renderNextGame(games);
+
+          const teamStats = safeArray(teamStatsResponse)[0] || {};
+          renderRecordCards(teamStats, games);
+        },
+        (error) => {
+          const message = error?.message || "Please try again later.";
+          renderSectionError("record-cards", "Unable to load season snapshot", message);
+          renderSectionError("last-games", "Unable to load recent games", message);
+          renderSectionError("next-game", "Unable to load next game", message);
+        }
+      );
+
+      await loadSection(
+        () => api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
+        (data) => {
+          renderLeaders(safeArray(data));
+        },
+        (error) => {
+          renderSectionError("leaders-grid", "Unable to load top players", error?.message || "Please try again later.");
+        }
+      );
+
+      await loadSection(
+        async () => {
+          const adjustedSummary = await api.getAdjustedRatingsSummary(TEAM_NAME, season);
+          const elo = await api.apiFetch("/ratings/elo", { team: TEAM_NAME, season });
+          return { adjusted: adjustedSummary.team, ranks: adjustedSummary.ranks, elo };
+        },
+        (data) => {
+          renderEfficiencyCards(data.adjusted, safeArray(data.elo), data.ranks || {});
+        },
+        (error) => {
+          renderSectionError("efficiency-grid", "Unable to load efficiency ratings", error?.message || "Please try again later.");
+        }
+      );
+
+      if (!safeArray(teamStatsResponse).length && !safeArray(gamesResponse).length) {
+        renderSectionError("hero-section", "No data available", "The API did not return dashboard data for this season.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadDashboard);
+  </script>
+</body>
+</html>

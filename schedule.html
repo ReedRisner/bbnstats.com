@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Kentucky Schedule</title>
+  <meta name="description" content="Kentucky Wildcats full schedule and results with filters, betting lines, and season chart.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    .schedule-banner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+      gap: 24px;
+      align-items: end;
+    }
+
+    .schedule-banner__stats,
+    .record-splits,
+    .future-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .schedule-banner__stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .record-splits {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .schedule-shell {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .schedule-list {
+      display: grid;
+      gap: 14px;
+      padding: 22px;
+    }
+
+    .schedule-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.4fr) minmax(200px, 1.2fr) minmax(180px, 0.9fr) minmax(150px, 0.9fr) minmax(120px, 0.8fr) auto;
+      gap: 14px;
+      align-items: start;
+      padding: 18px;
+      border: 1px solid rgba(74, 144, 217, 0.14);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    a.schedule-row {
+      color: inherit;
+      text-decoration: none;
+      transition:
+        transform var(--transition-fast),
+        border-color var(--transition-fast),
+        background-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+    }
+
+    a.schedule-row:hover,
+    a.schedule-row:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(74, 144, 217, 0.3);
+      background: rgba(74, 144, 217, 0.08);
+      box-shadow: var(--shadow-glow);
+      outline: none;
+    }
+
+    .schedule-row__block {
+      min-width: 0;
+    }
+
+    .schedule-row__date {
+      font-weight: 700;
+    }
+
+    .schedule-row__sub,
+    .schedule-row__meta,
+    .schedule-row__note {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+
+    .schedule-row__opponent {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .schedule-row__result {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .scoreline {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .small-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .small-badge--gold {
+      border-color: rgba(241, 196, 15, 0.3);
+      background: rgba(241, 196, 15, 0.14);
+      color: #ffe27c;
+    }
+
+    .small-badge--green {
+      border-color: rgba(39, 174, 96, 0.24);
+      background: rgba(39, 174, 96, 0.16);
+      color: #7ee2a8;
+    }
+
+    .small-badge--red {
+      border-color: rgba(231, 76, 60, 0.24);
+      background: rgba(231, 76, 60, 0.16);
+      color: #ff9188;
+    }
+
+    .period-breakdown {
+      margin-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 10px;
+    }
+
+    .period-breakdown summary {
+      cursor: pointer;
+      color: var(--uk-light-blue);
+      font-weight: 600;
+      list-style: none;
+    }
+
+    .period-breakdown summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .period-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .period-chip {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(74, 144, 217, 0.12);
+      text-align: center;
+    }
+
+    .future-card {
+      min-height: 150px;
+    }
+
+    .chart-panel .chart-frame {
+      min-height: 320px;
+    }
+
+    .schedule-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1180px) {
+      .schedule-banner,
+      .schedule-banner__stats,
+      .record-splits,
+      .future-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .schedule-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .schedule-banner,
+      .schedule-banner__stats,
+      .record-splits,
+      .future-grid,
+      .schedule-row {
+        grid-template-columns: 1fr;
+      }
+
+      .schedule-actions {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body data-page="schedule">
+  <main id="main-content" class="page-shell">
+    <div class="schedule-actions export-buttons">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="banner-section" class="hero-banner">
+        <div class="schedule-banner">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">Schedule & Results</span>
+              <div class="skeleton skeleton--title"></div>
+            </div>
+            <div class="skeleton skeleton--text"></div>
+            <div class="skeleton skeleton--text"></div>
+          </div>
+          <div class="schedule-banner__stats">
+            <div class="card"><div class="metric-label">Record</div><div class="skeleton skeleton--stat"></div></div>
+            <div class="card"><div class="metric-label">Streak</div><div class="skeleton skeleton--stat"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Record Splits</h2>
+          <p class="section-copy">Overall performance, split by location and conference play for the selected season.</p>
+        </div>
+      </div>
+      <div id="record-splits" class="record-splits">
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Full Schedule</h2>
+          <p class="section-copy">Every Kentucky game with location, result, betting context, and quick links to box scores.</p>
+        </div>
+      </div>
+      <div class="filter-row" id="filter-row">
+        <button class="btn btn--secondary is-active" type="button" data-filter="all">All</button>
+        <button class="btn btn--ghost" type="button" data-filter="regular">Regular Season</button>
+        <button class="btn btn--ghost" type="button" data-filter="postseason">Postseason</button>
+        <button class="btn btn--ghost" type="button" data-filter="home">Home</button>
+        <button class="btn btn--ghost" type="button" data-filter="away">Away</button>
+        <button class="btn btn--ghost" type="button" data-filter="conference">Conference</button>
+        <button class="btn btn--ghost" type="button" data-filter="nonconference">Non-Conference</button>
+      </div>
+      <div class="card schedule-shell">
+        <div id="schedule-list" class="schedule-list">
+          <div class="schedule-row"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div></div>
+          <div class="schedule-row"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div></div>
+          <div class="schedule-row"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--title"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Scheduled Games</h2>
+          <p class="section-copy">Upcoming Kentucky games with venue notes and any available line information.</p>
+        </div>
+      </div>
+      <div id="future-games" class="future-grid">
+        <div class="card future-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+        <div class="card future-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div><div class="skeleton skeleton--text"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Margin Chart</h2>
+          <p class="section-copy">Running game-by-game score differential across the season, green for wins and red for losses.</p>
+        </div>
+      </div>
+      <div id="margin-chart-panel" class="card chart-panel">
+        <div class="chart-wrap">
+          <div class="chart-frame">
+            <canvas id="margin-chart" aria-label="Season score differential chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    let scheduleGames = [];
+    let apRankings = [];
+    let currentFilter = "all";
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)} Schedule`;
+    }
+
+    function isNumeric(value) {
+      return typeof value === "number" && Number.isFinite(value);
+    }
+
+    function getDateValue(game) {
+      return game?.startDate || game?.date || game?.gameDate || null;
+    }
+
+    function getOpponentName(game) {
+      if (game?.opponent) {
+        if (typeof game.opponent === "string") return game.opponent;
+        return game.opponent.displayName || game.opponent.name || game.opponent.shortDisplayName || "Opponent";
+      }
+
+      if (game?.opponentName) return game.opponentName;
+      if (String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return game?.awayTeam || "Opponent";
+      return game?.homeTeam || "Opponent";
+    }
+
+    function normalizeTeamName(name) {
+      return String(name || "")
+        .normalize("NFKD")
+        .replace(/[^\w\s&.'-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function buildApRankings(rows) {
+      return safeArray(rows)
+        .filter((row) => String(row?.pollType || "").toLowerCase().includes("ap"))
+        .filter((row) => row?.team && row?.pollDate && Number.isFinite(Number(row?.ranking)))
+        .map((row) => ({
+          ...row,
+          normalizedTeam: normalizeTeamName(row.team),
+          pollTime: new Date(row.pollDate).getTime()
+        }))
+        .filter((row) => Number.isFinite(row.pollTime))
+        .sort((a, b) => a.pollTime - b.pollTime);
+    }
+
+    function getOpponentApRankForGame(game) {
+      const gameTime = new Date(getDateValue(game)).getTime();
+      const opponentName = normalizeTeamName(getOpponentName(game));
+
+      if (!Number.isFinite(gameTime) || !opponentName) {
+        return null;
+      }
+
+      const matchingPollRows = apRankings.filter((row) => row.pollTime <= gameTime && row.normalizedTeam === opponentName);
+      const latestPoll = matchingPollRows.at(-1);
+      return latestPoll ? Number(latestPoll.ranking) : null;
+    }
+
+    function getVenueText(game) {
+      return game?.venue || game?.location?.venue || game?.arena || game?.venueName || "Venue TBD";
+    }
+
+    function getCityText(game) {
+      const city = game?.city || game?.location?.city || game?.venueCity || "";
+      const state = game?.state || game?.location?.state || game?.venueState || "";
+      return [city, state].filter(Boolean).join(", ");
+    }
+
+    function getLocationType(game) {
+      const text = String(game?.locationType || game?.site || game?.homeAway || "").toLowerCase();
+      if (text.includes("neutral")) return "Neutral";
+      if (text.includes("away")) return "Away";
+      if (text.includes("home")) return "Home";
+      if (String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return "Home";
+      if (String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return "Away";
+      return "Neutral";
+    }
+
+    function getOpponentRank(game) {
+      return game?.opponentRank || game?.opponent?.rank || game?.awayRank || game?.homeRank || null;
+    }
+
+    function getKentuckyScore(game) {
+      if (isNumeric(game?.teamScore)) return Number(game.teamScore);
+      if (isNumeric(game?.homePoints) && String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return Number(game.homePoints);
+      if (isNumeric(game?.awayPoints) && String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return Number(game.awayPoints);
+      if (isNumeric(game?.homeScore) && String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return Number(game.homeScore);
+      if (isNumeric(game?.awayScore) && String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return Number(game.awayScore);
+      return null;
+    }
+
+    function getOpponentScore(game) {
+      if (isNumeric(game?.opponentScore)) return Number(game.opponentScore);
+      if (isNumeric(game?.awayPoints) && String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return Number(game.awayPoints);
+      if (isNumeric(game?.homePoints) && String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return Number(game.homePoints);
+      if (isNumeric(game?.awayScore) && String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return Number(game.awayScore);
+      if (isNumeric(game?.homeScore) && String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return Number(game.homeScore);
+      return null;
+    }
+
+    function isCompletedGame(game) {
+      const status = String(game?.status || game?.gameState || "").toLowerCase();
+      if (status === "final" || status === "complete" || status === "completed") {
+        return true;
+      }
+
+      return isNumeric(getKentuckyScore(game)) && isNumeric(getOpponentScore(game));
+    }
+
+    function normalizePeriodScores(game) {
+      const homePeriods = safeArray(game?.homePeriodPoints);
+      const awayPeriods = safeArray(game?.awayPeriodPoints);
+      const periodCount = Math.max(homePeriods.length, awayPeriods.length);
+      const kentuckyHome = String(game?.homeTeam || "").toLowerCase().includes("kentucky");
+
+      return Array.from({ length: periodCount }, (_, index) => {
+        const label = index === 0 ? "H1" : index === 1 ? "H2" : `OT${index - 1}`;
+        return {
+          label,
+          kentucky: kentuckyHome ? homePeriods[index] ?? "--" : awayPeriods[index] ?? "--",
+          opponent: kentuckyHome ? awayPeriods[index] ?? "--" : homePeriods[index] ?? "--"
+        };
+      });
+    }
+
+    function normalizeSpreadValue(line) {
+      const source = Array.isArray(line?.lines) ? line.lines[0] : line;
+      const candidates = [source?.spread, source?.line, source?.spreadValue, source?.favoriteSpread, source?.homeSpread, source?.awaySpread, source?.spreadOpen];
+      for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) return numeric;
+      }
+      return null;
+    }
+
+    function normalizeTotalValue(line) {
+      const source = Array.isArray(line?.lines) ? line.lines[0] : line;
+      const candidates = [source?.overUnder, source?.total, source?.projectedTotal, source?.overUnderOpen];
+      for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) return numeric;
+      }
+      return null;
+    }
+
+    function buildLinesMap(lines) {
+      const map = new Map();
+      safeArray(lines).forEach((line) => {
+        const keys = [
+          line?.gameId,
+          line?.id,
+          `${line?.homeTeam || ""}|${line?.awayTeam || ""}|${line?.startDate || line?.date || ""}`,
+          `${line?.awayTeam || ""}|${line?.homeTeam || ""}|${line?.startDate || line?.date || ""}`
+        ].filter(Boolean);
+
+        keys.forEach((key) => map.set(String(key), line));
+      });
+      return map;
+    }
+
+    function getLineForGame(game, linesMap) {
+      const keys = [
+        game?.id,
+        `${game?.homeTeam || ""}|${game?.awayTeam || ""}|${getDateValue(game) || ""}`,
+        `${game?.awayTeam || ""}|${game?.homeTeam || ""}|${getDateValue(game) || ""}`
+      ].filter(Boolean);
+
+      for (const key of keys) {
+        const found = linesMap.get(String(key));
+        if (found) {
+          return found;
+        }
+      }
+
+      return null;
+    }
+
+    function isConferenceGame(game) {
+      return Boolean(game?.conferenceGame) ||
+        String(game?.conference || "").toLowerCase().includes("sec") ||
+        String(game?.opponentConference || "").toLowerCase().includes("sec");
+    }
+
+    function isPostseasonGame(game) {
+      if (game?.derivedPostseason) {
+        return true;
+      }
+
+      const text = [game?.seasonType, game?.tournament, game?.eventType, game?.eventName].filter(Boolean).join(" ").toLowerCase();
+      return text.includes("post") ||
+        text.includes("ncaa") ||
+        text.includes("nit") ||
+        text.includes("tournament") ||
+        text.includes("sec tournament") ||
+        text.includes("sec tourney") ||
+        text.includes("conference tournament") ||
+        text.includes("conference championship");
+    }
+
+    function computeRecord(games) {
+      const completed = games.filter(isCompletedGame).sort((a, b) => new Date(getDateValue(a)) - new Date(getDateValue(b)));
+      let wins = 0;
+      let losses = 0;
+      let streakType = "";
+      let streakCount = 0;
+
+      completed.forEach((game) => {
+        if (getKentuckyScore(game) > getOpponentScore(game)) wins += 1;
+        else losses += 1;
+      });
+
+      for (let index = completed.length - 1; index >= 0; index -= 1) {
+        const didWin = getKentuckyScore(completed[index]) > getOpponentScore(completed[index]);
+        const type = didWin ? "W" : "L";
+        if (!streakType) {
+          streakType = type;
+          streakCount = 1;
+        } else if (streakType === type) {
+          streakCount += 1;
+        } else {
+          break;
+        }
+      }
+
+      return { wins, losses, streak: streakType ? `${streakType}${streakCount}` : "--" };
+    }
+
+    function computeSplitRecord(games, predicate) {
+      const split = games.filter((game) => isCompletedGame(game) && predicate(game));
+      const record = computeRecord(split);
+      return `${record.wins}-${record.losses}`;
+    }
+
+    function getKentuckyApSummary(rankings) {
+      const apRows = safeArray(rankings).filter((row) => String(row?.pollType || "").toLowerCase().includes("ap"));
+      const latest = apRows.sort((a, b) => Number(a?.week || 0) - Number(b?.week || 0)).at(-1) || null;
+      const rank = latest?.rank || latest?.ranking || latest?.position || null;
+      return rank ? `AP #${rank}` : "Unranked";
+    }
+
+    function createBadge(label, tone = "") {
+      return `<span class="small-badge${tone ? ` small-badge--${tone}` : ""}">${escapeHtml(label)}</span>`;
+    }
+
+    function getSpreadResult(game, line) {
+      const spread = normalizeSpreadValue(line);
+      const kentuckyScore = getKentuckyScore(game);
+      const opponentScore = getOpponentScore(game);
+
+      if (!Number.isFinite(spread) || !isNumeric(kentuckyScore) || !isNumeric(opponentScore)) return "No line";
+
+      const adjusted = kentuckyScore + spread;
+      if (adjusted > opponentScore) return "Covered";
+      if (adjusted < opponentScore) return "Did not cover";
+      return "Push";
+    }
+
+    function getOverUnderResult(game, line) {
+      const total = normalizeTotalValue(line);
+      const kentuckyScore = getKentuckyScore(game);
+      const opponentScore = getOpponentScore(game);
+
+      if (!Number.isFinite(total) || !isNumeric(kentuckyScore) || !isNumeric(opponentScore)) return "No total";
+
+      const combined = kentuckyScore + opponentScore;
+      if (combined > total) return "Over";
+      if (combined < total) return "Under";
+      return "Push";
+    }
+
+    function renderBanner(season, games, rankings) {
+      const record = computeRecord(games);
+      const apSummary = getKentuckyApSummary(rankings);
+      const completed = games.filter(isCompletedGame);
+      const nextGame = games.filter((game) => !isCompletedGame(game)).sort((a, b) => new Date(getDateValue(a)) - new Date(getDateValue(b)))[0];
+
+      document.getElementById("banner-section").innerHTML = `
+        <div class="schedule-banner">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">Schedule & Results</span>
+              <h1 class="hero-title">${escapeHtml(seasonLabel(season))}</h1>
+            </div>
+            <p class="lead">Full Kentucky schedule with results, betting context, period scores, and box-score links.</p>
+            <div class="badge-row">
+              ${createBadge(apSummary, "gold")}
+              ${createBadge(`${completed.length} Completed`)}
+              ${createBadge(`${games.length - completed.length} Scheduled`)}
+            </div>
+            ${nextGame ? `<div class="hero-support">Next up: ${escapeHtml(getOpponentName(nextGame))} on ${escapeHtml(getHelpers().utils.formatDate(getDateValue(nextGame)))}</div>` : '<div class="hero-support">All listed games for this season have been completed.</div>'}
+          </div>
+          <div class="schedule-banner__stats">
+            <div class="card">
+              <div class="metric-label">Record</div>
+              <div class="metric-value">${escapeHtml(`${record.wins}-${record.losses}`)}</div>
+            </div>
+            <div class="card">
+              <div class="metric-label">Current Streak</div>
+              <div class="metric-value">${escapeHtml(record.streak)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSplits(games) {
+      const overall = computeRecord(games);
+      document.getElementById("record-splits").innerHTML = [
+        { label: "Overall", value: `${overall.wins}-${overall.losses}` },
+        { label: "Home", value: computeSplitRecord(games, (game) => getLocationType(game) === "Home") },
+        { label: "Away", value: computeSplitRecord(games, (game) => getLocationType(game) === "Away") },
+        { label: "Conference", value: computeSplitRecord(games, (game) => isConferenceGame(game)) }
+      ].map((item) => `
+        <div class="card">
+          <div class="metric-label">${escapeHtml(item.label)}</div>
+          <div class="metric-value">${escapeHtml(item.value)}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderPeriodBreakdown(game) {
+      const periods = normalizePeriodScores(game);
+      if (!periods.length) return "";
+
+      return `
+        <details class="period-breakdown">
+          <summary>Period scores</summary>
+          <div class="period-grid">
+            ${periods.map((period) => `
+              <div class="period-chip">
+                <div class="metric-label">${escapeHtml(period.label)}</div>
+                <div>${escapeHtml(`${period.kentucky}-${period.opponent}`)}</div>
+              </div>
+            `).join("")}
+          </div>
+        </details>
+      `;
+    }
+
+    function normalizeTournamentLabel(game) {
+      return game?.tournament || game?.eventName || game?.seasonTypeLabel || "";
+    }
+
+    function renderScheduleRows() {
+      const target = document.getElementById("schedule-list");
+      const filtered = scheduleGames.filter((game) => {
+        if (currentFilter === "regular") return !isPostseasonGame(game);
+        if (currentFilter === "postseason") return isPostseasonGame(game);
+        if (currentFilter === "home") return getLocationType(game) === "Home";
+        if (currentFilter === "away") return getLocationType(game) === "Away";
+        if (currentFilter === "conference") return isConferenceGame(game);
+        if (currentFilter === "nonconference") return !isConferenceGame(game) && !isPostseasonGame(game);
+        return true;
+      });
+
+      if (!filtered.length) {
+        target.innerHTML = '<div class="empty-state">No games match this filter for the selected season.</div>';
+        return;
+      }
+
+      target.innerHTML = filtered.map((game) => {
+        const date = getDateValue(game);
+        const locationType = getLocationType(game);
+        const result = isCompletedGame(game) ? (getKentuckyScore(game) > getOpponentScore(game) ? "W" : "L") : "Scheduled";
+        const margin = isCompletedGame(game) ? getKentuckyScore(game) - getOpponentScore(game) : null;
+        const line = game.line || null;
+        const spread = normalizeSpreadValue(line);
+        const total = normalizeTotalValue(line);
+        const attendance = game?.attendance || game?.announcedAttendance || null;
+        const tournament = normalizeTournamentLabel(game);
+        const opponentRank = getOpponentApRankForGame(game) || getOpponentRank(game);
+        const badges = [
+          createBadge(locationType),
+          game?.neutralSite ? createBadge("Neutral Site") : "",
+          isConferenceGame(game) ? createBadge("SEC", "gold") : "",
+          tournament ? createBadge(tournament, "gold") : ""
+        ].filter(Boolean).join("");
+
+        const resultBadge = result === "W"
+          ? createBadge("Win", "green")
+          : result === "L"
+            ? createBadge("Loss", "red")
+            : createBadge("Scheduled");
+
+        const rowContent = `
+          <div class="schedule-row__block">
+            <div class="schedule-row__date">${escapeHtml(getHelpers().utils.formatDate(date))}</div>
+            <div class="schedule-row__sub">${escapeHtml(new Date(date).toLocaleDateString("en-US", { weekday: "short" }))}</div>
+          </div>
+          <div class="schedule-row__block">
+            <div class="schedule-row__opponent">${escapeHtml(getOpponentName(game))}${opponentRank ? ` <span class="small-badge">#${escapeHtml(opponentRank)}</span>` : ""}</div>
+            <div class="badge-row">${badges}</div>
+          </div>
+          <div class="schedule-row__block">
+            <div>${escapeHtml(getVenueText(game))}</div>
+            <div class="schedule-row__meta">${escapeHtml(getCityText(game) || "Location TBD")}</div>
+          </div>
+          <div class="schedule-row__block schedule-row__result">
+            <div>${resultBadge}</div>
+            <div class="scoreline">${isCompletedGame(game) ? escapeHtml(`${getKentuckyScore(game)}-${getOpponentScore(game)}`) : "Time TBD"}</div>
+            <div class="schedule-row__meta">${isCompletedGame(game) ? escapeHtml(`Margin ${margin > 0 ? "+" : ""}${margin}`) : "Awaiting tipoff"}</div>
+            ${isCompletedGame(game) ? renderPeriodBreakdown(game) : ""}
+          </div>
+          <div class="schedule-row__block">
+            <div>${escapeHtml(`Spread: ${Number.isFinite(spread) ? spread : "--"}`)}</div>
+            <div class="schedule-row__meta">${escapeHtml(getSpreadResult(game, line))}</div>
+            <div style="margin-top: 8px;">${escapeHtml(`O/U: ${Number.isFinite(total) ? total : "--"}`)}</div>
+            <div class="schedule-row__meta">${escapeHtml(getOverUnderResult(game, line))}</div>
+          </div>
+          <div class="schedule-row__block">
+            <div>${escapeHtml(`Attendance: ${attendance ? Number(attendance).toLocaleString("en-US") : "--"}`)}</div>
+            <div class="schedule-row__note">${escapeHtml(game?.status || game?.gameState || "")}</div>
+          </div>
+          <div class="schedule-row__block">
+            ${isCompletedGame(game)
+              ? ''
+              : '<span class="small-badge">Upcoming</span>'}
+          </div>
+        `;
+
+        if (isCompletedGame(game)) {
+          return `
+            <a class="schedule-row" href="game.html?id=${encodeURIComponent(game.id)}&season=${encodeURIComponent(getHelpers().utils.getSeason())}" aria-label="Open box score for ${escapeHtml(getOpponentName(game))} on ${escapeHtml(getHelpers().utils.formatDate(date))}">
+              ${rowContent}
+            </a>
+          `;
+        }
+
+        return `
+          <article class="schedule-row">
+            ${rowContent}
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderFutureGames(games) {
+      const target = document.getElementById("future-games");
+      const upcoming = games
+        .filter((game) => !isCompletedGame(game))
+        .sort((a, b) => new Date(getDateValue(a)) - new Date(getDateValue(b)))
+        .slice(0, 6);
+
+      if (!upcoming.length) {
+        target.innerHTML = '<div class="empty-state">No future games are currently scheduled for this season.</div>';
+        return;
+      }
+
+      target.innerHTML = upcoming.map((game) => {
+        const line = game.line || null;
+        return `
+          <div class="card future-card">
+            <div class="metric-label">${escapeHtml(getHelpers().utils.formatDate(getDateValue(game)))}</div>
+            <div class="metric-value">${escapeHtml(getOpponentName(game))}</div>
+            <div class="schedule-row__meta">${escapeHtml(`${getLocationType(game)} | ${getVenueText(game)}`)}</div>
+            <div class="schedule-row__meta">${escapeHtml(getCityText(game) || "Location TBD")}</div>
+            <div class="badge-row">
+              ${createBadge(Number.isFinite(normalizeSpreadValue(line)) ? `Spread ${normalizeSpreadValue(line)}` : "Spread TBD")}
+              ${createBadge(Number.isFinite(normalizeTotalValue(line)) ? `O/U ${normalizeTotalValue(line)}` : "Total TBD")}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderMarginChart(games) {
+      const completed = games
+        .filter(isCompletedGame)
+        .sort((a, b) => new Date(getDateValue(a)) - new Date(getDateValue(b)));
+
+      if (!completed.length) {
+        document.getElementById("margin-chart-panel").innerHTML = '<div class="empty-state">No completed games available to chart for this season.</div>';
+        return;
+      }
+
+      const labels = completed.map((game) => getHelpers().utils.formatDate(getDateValue(game)));
+      const data = completed.map((game) => getKentuckyScore(game) - getOpponentScore(game));
+      const colors = data.map((value) => value >= 0 ? "#27AE60" : "#E74C3C");
+
+      getHelpers().charts.barChart("margin-chart", labels, [
+        {
+          label: "Margin",
+          data,
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 1.5
+        }
+      ], {
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback(value) {
+                return value > 0 ? `+${value}` : `${value}`;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function bindFilters() {
+      document.querySelectorAll("[data-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentFilter = button.dataset.filter;
+          document.querySelectorAll("[data-filter]").forEach((item) => {
+            item.classList.remove("is-active");
+            item.classList.remove("btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active");
+          button.classList.remove("btn--ghost");
+          button.classList.add("btn--secondary");
+          renderScheduleRows();
+        });
+      });
+    }
+
+    function normalizeGames(games, linesMap) {
+      const sortedGames = safeArray(games)
+        .map((game) => ({
+          ...game,
+          line: getLineForGame(game, linesMap)
+        }))
+        .sort((a, b) => new Date(getDateValue(a)) - new Date(getDateValue(b)));
+
+      let conferenceGameCount = 0;
+
+      return sortedGames.map((game) => {
+        const conferenceGame = isConferenceGame(game);
+
+        if (conferenceGame) {
+          conferenceGameCount += 1;
+        }
+
+        return {
+          ...game,
+          derivedPostseason: conferenceGame && conferenceGameCount > 18
+        };
+      });
+    }
+
+    async function loadSchedulePage() {
+      const season = getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+
+      try {
+        const [gamesResponse, linesResponse, rankingsResponse] = await Promise.all([
+          getHelpers().api.apiFetch("/games", { team: TEAM_NAME, season }),
+          getHelpers().api.apiFetch("/lines", { team: TEAM_NAME, season }),
+          getHelpers().api.apiFetch("/rankings", { team: TEAM_NAME, season })
+        ]);
+
+        const linesMap = buildLinesMap(linesResponse);
+        apRankings = buildApRankings(rankingsResponse);
+        scheduleGames = normalizeGames(gamesResponse, linesMap);
+
+        renderBanner(season, scheduleGames, rankingsResponse);
+        renderSplits(scheduleGames);
+        renderScheduleRows();
+        renderFutureGames(scheduleGames);
+        renderMarginChart(scheduleGames);
+        bindFilters();
+        getHelpers().printer.bindExportButtons?.();
+      } catch (error) {
+        const message = error?.message || "Please try again later.";
+        document.getElementById("banner-section").innerHTML = `<div class="empty-state">Unable to load schedule data. ${escapeHtml(message)}</div>`;
+        document.getElementById("record-splits").innerHTML = "";
+        document.getElementById("schedule-list").innerHTML = `<div class="empty-state">Unable to load schedule data. ${escapeHtml(message)}</div>`;
+        document.getElementById("future-games").innerHTML = `<div class="empty-state">Unable to load future games. ${escapeHtml(message)}</div>`;
+        document.getElementById("margin-chart-panel").innerHTML = `<div class="empty-state">Unable to load margin chart. ${escapeHtml(message)}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadSchedulePage);
+  </script>
+</body>
+</html>

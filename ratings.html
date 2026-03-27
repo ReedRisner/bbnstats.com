@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Efficiency & Elo Ratings</title>
+  <meta name="description" content="Kentucky adjusted efficiency and Elo ratings with season context and historical trend charts.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .ratings-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .context-card__bar {
+      position: relative;
+      height: 16px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(231, 76, 60, 0.22), rgba(241, 196, 15, 0.22), rgba(39, 174, 96, 0.22));
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .context-card__marker {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--uk-light-blue);
+      border: 2px solid #ffffff;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.16);
+    }
+
+    .context-card__labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    .historical-table th:first-child,
+    .historical-table td:first-child {
+      min-width: 84px;
+    }
+  </style>
+</head>
+<body data-page="ratings">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="ratings-hero" class="hero-banner">
+        <span class="eyebrow">Efficiency & Elo Ratings</span>
+        <h1 class="hero-title">Loading Team Ratings</h1>
+        <p class="lead">Adjusted efficiency, Elo, and historical trend context for Kentucky basketball.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="ratings-grid" class="ratings-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">National Context</h2>
+          <p class="section-copy">Where Kentucky’s ratings sit relative to the 100-point national average baseline.</p>
+        </div>
+      </div>
+      <div id="context-grid" class="ratings-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historical Trend</h2>
+          <p class="section-copy">Adjusted net rating and Elo trend across available seasons.</p>
+        </div>
+      </div>
+      <div class="chart-shell">
+        <div class="chart-wrap">
+          <div class="chart-frame" id="trend-chart-frame">
+            <canvas id="ratings-trend-chart" aria-label="Historical ratings trend chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historical Ratings Table</h2>
+          <p class="section-copy">Season-by-season adjusted efficiency and Elo values.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table historical-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>OffRtg</th>
+                <th>DefRtg</th>
+                <th>NetRtg</th>
+                <th>Off Rank</th>
+                <th>Def Rank</th>
+                <th>Net Rank</th>
+                <th>Elo</th>
+              </tr>
+            </thead>
+            <tbody id="ratings-body">
+              <tr><td colspan="8">Loading ratings history...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    const HISTORICAL_SEASONS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
+    let ratingsState = {
+      currentAdjusted: null,
+      currentElo: null,
+      currentRanks: {},
+      historical: []
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getSeason() {
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function renderHero(season) {
+      document.getElementById("ratings-hero").innerHTML = `
+        <span class="eyebrow">Efficiency & Elo Ratings</span>
+        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Ratings</h1>
+        <p class="lead">Adjusted offensive and defensive strength, Elo context, and program trajectory over time.</p>
+      `;
+    }
+
+    function eloContext(elo) {
+      const value = Number(elo || 0);
+      if (value >= 1800) return "Top 25 nationally";
+      if (value >= 1650) return "Above average nationally";
+      if (value >= 1500) return "Nationally competitive";
+      return "Below elite tier";
+    }
+
+    function renderCurrentCards() {
+      const adjusted = ratingsState.currentAdjusted || {};
+      const elo = ratingsState.currentElo || {};
+      const ranks = ratingsState.currentRanks || {};
+
+      document.getElementById("ratings-grid").innerHTML = `
+        <article class="card">
+          <div class="metric-label">Offensive Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.offensiveRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.offense ? `#${ranks.offense} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Defensive Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.defensiveRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.defense ? `#${ranks.defense} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Net Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.netRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.net ? `#${ranks.net} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Elo</div>
+          <div class="metric-value">${escapeHtml(fmtNum(elo.elo, 0))}</div>
+          <div class="hero-support">${escapeHtml(eloContext(elo.elo))}</div>
+        </article>
+      `;
+    }
+
+    function renderContextBars() {
+      const adjusted = ratingsState.currentAdjusted || {};
+      const metrics = [
+        {
+          title: "Offensive Context",
+          value: Number(adjusted.offensiveRating || 0),
+          min: 90,
+          max: 130,
+          labels: ["90", "100 Avg", "130 Elite"]
+        },
+        {
+          title: "Defensive Context",
+          value: Number(adjusted.defensiveRating || 0),
+          min: 85,
+          max: 120,
+          labels: ["85 Elite", "100 Avg", "120 Poor"],
+          invert: true
+        }
+      ];
+
+      document.getElementById("context-grid").innerHTML = metrics.map((metric) => {
+        const normalized = metric.invert
+          ? ((metric.max - metric.value) / (metric.max - metric.min)) * 100
+          : ((metric.value - metric.min) / (metric.max - metric.min)) * 100;
+        const clamped = Math.max(0, Math.min(100, normalized));
+
+        return `
+          <article class="card context-card">
+            <div class="card-title">${escapeHtml(metric.title)}</div>
+            <div class="metric-value" style="margin-top: 8px;">${escapeHtml(fmtNum(metric.value, 1))}</div>
+            <div class="context-card__bar">
+              <span class="context-card__marker" style="left: ${clamped}%;"></span>
+            </div>
+            <div class="context-card__labels">
+              <span>${escapeHtml(metric.labels[0])}</span>
+              <span>${escapeHtml(metric.labels[1])}</span>
+              <span>${escapeHtml(metric.labels[2])}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderTrendChart() {
+      const rows = ratingsState.historical.slice().sort((a, b) => a.season - b.season);
+      const frame = document.getElementById("trend-chart-frame");
+      if (!rows.length) {
+        frame.innerHTML = '<div class="empty-state">No ratings history is available.</div>';
+        return;
+      }
+
+      frame.innerHTML = '<canvas id="ratings-trend-chart" aria-label="Historical ratings trend chart"></canvas>';
+      getHelpers().charts.lineChart("ratings-trend-chart", rows.map((row) => seasonLabel(row.season)), [
+        {
+          label: "Net Rating",
+          data: rows.map((row) => Number(row.adjusted?.netRating ?? 0)),
+          borderColor: "#4A90D9",
+          backgroundColor: "rgba(74, 144, 217, 0.16)",
+          fill: false
+        },
+        {
+          label: "Elo",
+          data: rows.map((row) => Number(row.elo?.elo ?? 0)),
+          borderColor: "#F3C969",
+          backgroundColor: "rgba(243, 201, 105, 0.16)",
+          fill: false,
+          yAxisID: "y1"
+        }
+      ], {
+        scales: {
+          y: {
+            position: "left",
+            title: {
+              display: true,
+              text: "Net Rating"
+            }
+          },
+          y1: {
+            position: "right",
+            grid: {
+              drawOnChartArea: false
+            },
+            title: {
+              display: true,
+              text: "Elo"
+            }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      document.getElementById("ratings-body").innerHTML = ratingsState.historical
+        .slice()
+        .sort((a, b) => b.season - a.season)
+        .map((row) => `
+          <tr>
+            <td>${escapeHtml(seasonLabel(row.season))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.offensiveRating, 1))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.defensiveRating, 1))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.netRating, 1))}</td>
+            <td>${escapeHtml(row.adjustedRanks?.offense ?? "--")}</td>
+            <td>${escapeHtml(row.adjustedRanks?.defense ?? "--")}</td>
+            <td>${escapeHtml(row.adjustedRanks?.net ?? "--")}</td>
+            <td>${escapeHtml(fmtNum(row.elo?.elo, 0))}</td>
+          </tr>
+        `).join("");
+    }
+
+    function renderAll() {
+      renderCurrentCards();
+      renderContextBars();
+      renderTrendChart();
+      renderTable();
+    }
+
+    async function loadCurrent(season) {
+      const [adjustedSummary, eloResponse] = await Promise.all([
+        getHelpers().api.getAdjustedRatingsSummary(TEAM_NAME, season),
+        getHelpers().api.apiFetch("/ratings/elo", { team: TEAM_NAME, season })
+      ]);
+
+      ratingsState.currentAdjusted = adjustedSummary?.team || {};
+      ratingsState.currentElo = safeArray(eloResponse)[0] || eloResponse || {};
+      ratingsState.currentRanks = adjustedSummary?.ranks || {};
+      renderCurrentCards();
+      renderContextBars();
+    }
+
+    async function loadHistorical(currentSeason) {
+      const rows = await Promise.all(HISTORICAL_SEASONS.map(async (season) => {
+        try {
+          const [adjustedSummary, eloResponse] = await Promise.all([
+            getHelpers().api.getAdjustedRatingsSummary(TEAM_NAME, season),
+            getHelpers().api.apiFetch("/ratings/elo", { team: TEAM_NAME, season })
+          ]);
+
+          return {
+            season,
+            adjusted: adjustedSummary?.team || {},
+            adjustedRanks: adjustedSummary?.ranks || {},
+            elo: safeArray(eloResponse)[0] || eloResponse || {}
+          };
+        } catch (error) {
+          return { season, adjusted: {}, adjustedRanks: {}, elo: {} };
+        }
+      }));
+
+      ratingsState.historical = rows;
+      const currentRow = rows.find((row) => row.season === currentSeason);
+      if (currentRow) {
+        ratingsState.currentAdjusted = currentRow.adjusted || ratingsState.currentAdjusted;
+        ratingsState.currentElo = currentRow.elo || ratingsState.currentElo;
+        ratingsState.currentRanks = currentRow.adjustedRanks || ratingsState.currentRanks;
+      }
+    }
+
+    async function loadRatingsPage() {
+      const season = getSeason();
+      renderHero(season);
+      getHelpers().printer.bindExportButtons?.({ pageName: "ratings", elementId: "main-content" });
+
+      try {
+        await loadCurrent(season);
+        renderTrendChart();
+        renderTable();
+        await loadHistorical(season);
+        renderTrendChart();
+        renderTable();
+      } catch (error) {
+        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load ratings. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadRatingsPage);
+  </script>
+</body>
+</html>

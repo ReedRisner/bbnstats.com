@@ -1,0 +1,273 @@
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body {
+    min-height: auto;
+    font-size: 11pt;
+    line-height: 1.35;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  nav,
+  .site-nav,
+  .no-print,
+  .export-buttons,
+  .btn,
+  .button,
+  .chart-toggle,
+  .filter-bar,
+  .page-toolbar,
+  .chart-toolbar,
+  .shot-chart__toolbar {
+    display: none !important;
+  }
+
+  main,
+  .page-shell,
+  .content-wrap,
+  .container,
+  .site-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  a,
+  a:visited {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
+
+  .hero,
+  .hero-banner,
+  .card,
+  .panel,
+  .surface,
+  .table-shell,
+  .table-card,
+  .chart-shell,
+  .chart-card,
+  .shot-chart {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #cccccc !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .card,
+  .panel,
+  .surface,
+  .table-shell,
+  .table-card,
+  .chart-shell,
+  .chart-card {
+    padding: 12pt !important;
+  }
+
+  .hero::before,
+  .hero::after,
+  .hero-banner::before,
+  .hero-banner::after,
+  .card::after,
+  .panel::after,
+  .surface::after {
+    display: none !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .display-title,
+  .hero-title,
+  .section-title,
+  .card-title,
+  .stat-number,
+  .metric-value,
+  .hero-stat-value,
+  .eyebrow,
+  .section-kicker,
+  .stat-label,
+  .metric-label,
+  .meta-label,
+  .lead,
+  .section-copy,
+  .page-subtitle,
+  .text-secondary,
+  .text-muted,
+  .accent-blue,
+  .accent-green,
+  .accent-red,
+  .accent-yellow,
+  .table-toolbar__meta,
+  .chart-copy,
+  .chart-note,
+  .chart-footnote,
+  .legend-item,
+  .shot-chart__legend-item {
+    color: #000000 !important;
+  }
+
+  .badge,
+  .status-badge,
+  .pill,
+  .stat-chip {
+    border: 1px solid #999999 !important;
+    background: #f3f3f3 !important;
+    color: #000000 !important;
+  }
+
+  .table-toolbar,
+  .chart-header,
+  .chart-wrap,
+  .chart-container,
+  .chart-note,
+  .chart-footnote {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .table-responsive,
+  .table-scroll,
+  .scroll-x,
+  .table-responsive *,
+  .table-scroll * {
+    overflow: visible !important;
+  }
+
+  .data-table,
+  .stats-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    color: #000000 !important;
+  }
+
+  .data-table th,
+  .data-table td,
+  .stats-table th,
+  .stats-table td {
+    padding: 6pt 8pt !important;
+    border-color: #d4d4d4 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+
+  .data-table th,
+  .stats-table th {
+    position: static !important;
+    font-size: 8.5pt !important;
+    letter-spacing: 0.04em !important;
+    background: #f3f3f3 !important;
+  }
+
+  .data-table td,
+  .stats-table td,
+  table {
+    font-size: 10px !important;
+  }
+
+  .sort-arrow,
+  .sort-indicator,
+  .sortable-table th[data-sort]::after,
+  .data-table th[data-sort]::after,
+  .stats-table th[data-sort]::after {
+    color: #000000 !important;
+  }
+
+  .heat-cell,
+  .heat-best,
+  .heat-good,
+  .heat-above,
+  .heat-neutral,
+  .heat-below,
+  .heat-low,
+  .heat-0,
+  .heat-1,
+  .heat-2,
+  .heat-3,
+  .heat-4,
+  .heat-5,
+  .heat-blue,
+  .heat-blue-strong,
+  .heat-red,
+  .heat-red-strong {
+    color: #000000 !important;
+    background: #f5f5f5 !important;
+    box-shadow: none !important;
+  }
+
+  .chart-frame,
+  .chart-empty,
+  .chart-loading,
+  .chart-error,
+  .empty-state,
+  .loading-state,
+  .error-state {
+    min-height: auto !important;
+    border: 1px solid #cccccc !important;
+    background: #ffffff !important;
+  }
+
+  canvas,
+  .chart-canvas,
+  .shot-chart__surface canvas {
+    max-width: 100% !important;
+    height: auto !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .split-grid,
+  .two-column,
+  .three-column,
+  .card-grid,
+  .stats-grid,
+  .dashboard-grid,
+  .chart-grid,
+  .chart-grid--split {
+    display: block !important;
+  }
+
+  .split-grid > *,
+  .two-column > *,
+  .three-column > *,
+  .card-grid > *,
+  .stats-grid > *,
+  .dashboard-grid > *,
+  .chart-grid > *,
+  .chart-grid--split > * {
+    margin-bottom: 12pt !important;
+  }
+
+  .section,
+  .page-header,
+  .section-header {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 0.5in;
+  }
+}

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Player Statistics</title>
+  <meta name="description" content="Kentucky player statistics page with traditional, advanced, and shooting tables.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .stats-toolbar {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stats-toolbar__row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stats-controls,
+    .stats-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stats-table th:first-child,
+    .stats-table td:first-child {
+      min-width: 200px;
+    }
+
+    .heat-toggle-note {
+      color: var(--text-muted);
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+<body data-page="stats">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div class="hero-banner">
+        <span class="eyebrow">Player Statistics</span>
+        <h1 class="hero-title" id="stats-title">Loading Player Statistics</h1>
+        <p class="lead">Sortable Kentucky player tables across traditional, advanced, and shooting categories.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="stats-toolbar">
+        <div class="stats-toolbar__row">
+          <div class="stats-controls">
+            <button class="btn btn--secondary is-active" type="button" data-season-type="all">All</button>
+            <button class="btn btn--ghost" type="button" data-season-type="regular">Regular Season</button>
+            <button class="btn btn--ghost" type="button" data-season-type="postseason">Postseason</button>
+          </div>
+          <div class="stats-controls">
+            <button class="btn btn--secondary is-active" type="button" data-stat-mode="perGame">Per Game</button>
+            <button class="btn btn--ghost" type="button" data-stat-mode="totals">Totals</button>
+          </div>
+        </div>
+        <div class="stats-toolbar__row">
+          <div class="stats-controls">
+            <button class="btn btn--secondary is-active" type="button" data-stat-tab="traditional">Traditional</button>
+            <button class="btn btn--ghost" type="button" data-stat-tab="advanced">Advanced</button>
+            <button class="btn btn--ghost" type="button" data-stat-tab="shooting">Shooting</button>
+          </div>
+          <div class="stats-actions">
+            <button class="btn btn--ghost" type="button" id="heat-toggle">Heat Colors Off</button>
+            <button class="btn btn--secondary" type="button" id="export-csv">Export CSV</button>
+          </div>
+        </div>
+        <div class="heat-toggle-note">Default sort is minutes descending. Click any column header to sort ascending or descending.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table sortable-table stats-table" id="stats-table">
+            <thead id="stats-head"></thead>
+            <tbody id="stats-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    let allStatsRows = [];
+    let currentTab = "traditional";
+    let currentMode = "perGame";
+    let currentSeasonType = "all";
+    let heatEnabled = false;
+    let currentSort = { key: "minutes", asc: false };
+
+    const TAB_COLUMNS = {
+      traditional: [
+        { key: "name", label: "Player" },
+        { key: "games", label: "G" },
+        { key: "gamesStarted", label: "GS" },
+        { key: "minutes", label: "MIN" },
+        { key: "points", label: "PTS" },
+        { key: "rebounds", label: "REB" },
+        { key: "assists", label: "AST" },
+        { key: "steals", label: "STL" },
+        { key: "blocks", label: "BLK" },
+        { key: "turnovers", label: "TO" },
+        { key: "fouls", label: "PF" },
+        { key: "fieldGoals", label: "FG" },
+        { key: "threePointFieldGoals", label: "3P" },
+        { key: "freeThrows", label: "FT" }
+      ],
+      advanced: [
+        { key: "name", label: "Player" },
+        { key: "usage", label: "Usage%" },
+        { key: "offensiveRating", label: "OffRtg" },
+        { key: "defensiveRating", label: "DefRtg" },
+        { key: "netRating", label: "NetRtg" },
+        { key: "PORPAG", label: "PORPAG" },
+        { key: "effectiveFieldGoalPct", label: "eFG%" },
+        { key: "trueShootingPct", label: "TS%" },
+        { key: "assistsTurnoverRatio", label: "AST/TO" },
+        { key: "freeThrowRate", label: "FT Rate" },
+        { key: "offensiveReboundPct", label: "OReb%" },
+        { key: "winShares", label: "Win Shares" },
+        { key: "wsPer40", label: "WS/40" }
+      ],
+      shooting: [
+        { key: "name", label: "Player" },
+        { key: "fieldGoals", label: "FG" },
+        { key: "twoPointFieldGoals", label: "2P" },
+        { key: "threePointFieldGoals", label: "3P" },
+        { key: "freeThrows", label: "FT" },
+        { key: "dunks", label: "Dunks" },
+        { key: "layups", label: "Layups" },
+        { key: "twoPointJumpers", label: "2P Jumpers" },
+        { key: "threePointJumpers", label: "3P Jumpers" },
+        { key: "assistedPct", label: "Assisted%" }
+      ]
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)} Player Statistics`;
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function perGame(total, games) {
+      const totalNum = Number(total || 0);
+      const gamesNum = Number(games || 0);
+      return gamesNum ? totalNum / gamesNum : 0;
+    }
+
+    function makeShotLine(stat) {
+      if (!stat) return "--";
+      return `${stat.made || 0}-${stat.attempted || 0} (${fmtPct(stat.pct)})`;
+    }
+
+    function normalizeRows(statsResponse, shootingResponse) {
+      const shootingRows = safeArray(shootingResponse);
+      const shootingById = new Map(
+        shootingRows
+          .filter((row) => Number.isFinite(Number(row.athleteId)))
+          .map((row) => [Number(row.athleteId), row])
+      );
+      const shootingByName = new Map(
+        shootingRows.map((row) => [String(row.athleteName || row.name || "").trim().toLowerCase(), row])
+      );
+
+      return safeArray(statsResponse).map((row) => {
+        const games = Number(row.games || 0);
+        const shooting = shootingById.get(Number(row.athleteId))
+          || shootingByName.get(String(row.name || "").trim().toLowerCase())
+          || {};
+        return {
+          ...row,
+          shooting,
+          games,
+          gamesStarted: Number(row.gamesStarted || row.starts || 0),
+          winShares: Number(row.winShares?.total || 0),
+          wsPer40: Number(row.winShares?.totalPer40 || 0)
+        };
+      });
+    }
+
+    function filterRows() {
+      return allStatsRows.filter((row) => {
+        if (currentSeasonType === "regular") return String(row.seasonType || "").toLowerCase() !== "postseason";
+        if (currentSeasonType === "postseason") return String(row.seasonType || "").toLowerCase() === "postseason";
+        return true;
+      });
+    }
+
+    function comparableValue(row, key) {
+      switch (key) {
+        case "name": return row.name || "";
+        case "fieldGoals":
+        case "twoPointFieldGoals":
+        case "threePointFieldGoals":
+        case "freeThrows":
+          return Number(row[key]?.pct || row[key]?.made || 0);
+        case "dunks":
+        case "layups":
+        case "twoPointJumpers":
+        case "threePointJumpers":
+          return Number(row.shooting?.[key]?.attempted || row.shooting?.attemptsBreakdown?.[key] || 0);
+        case "assistedPct":
+          return Number(row.shooting?.assistedPct || 0);
+        case "rebounds":
+          return currentMode === "perGame" ? perGame(row.rebounds?.total, row.games) : Number(row.rebounds?.total || 0);
+        default: {
+          const raw = row[key];
+          if (currentMode === "perGame" && ["minutes", "points", "assists", "steals", "blocks", "turnovers", "fouls"].includes(key)) {
+            return perGame(raw, row.games);
+          }
+          return Number(raw || 0);
+        }
+      }
+    }
+
+    function renderValue(row, key) {
+      switch (key) {
+        case "name":
+          return row.athleteId ? `<a class="cell-link" href="player.html?id=${encodeURIComponent(row.athleteId)}&season=${encodeURIComponent(getHelpers().utils.getSeason())}">${escapeHtml(row.name)}</a>` : escapeHtml(row.name);
+        case "games":
+        case "gamesStarted":
+          return escapeHtml(row[key] ?? 0);
+        case "minutes":
+        case "points":
+        case "assists":
+        case "steals":
+        case "blocks":
+        case "turnovers":
+        case "fouls":
+          return escapeHtml(fmtNum(currentMode === "perGame" ? perGame(row[key], row.games) : row[key], 1));
+        case "rebounds":
+          return escapeHtml(fmtNum(currentMode === "perGame" ? perGame(row.rebounds?.total, row.games) : row.rebounds?.total, 1));
+        case "fieldGoals":
+        case "twoPointFieldGoals":
+        case "threePointFieldGoals":
+        case "freeThrows":
+          return escapeHtml(makeShotLine(row[key]));
+        case "usage":
+        case "effectiveFieldGoalPct":
+        case "trueShootingPct":
+        case "offensiveReboundPct":
+          return escapeHtml(fmtPct(row[key]));
+        case "offensiveRating":
+        case "defensiveRating":
+        case "netRating":
+        case "PORPAG":
+        case "freeThrowRate":
+        case "assistsTurnoverRatio":
+        case "winShares":
+        case "wsPer40":
+          return escapeHtml(fmtNum(row[key], key === "wsPer40" ? 3 : 1));
+        case "dunks":
+        case "layups":
+        case "twoPointJumpers":
+        case "threePointJumpers": {
+          const made = Number(row.shooting?.[key]?.made || 0);
+          const attempted = Number(row.shooting?.[key]?.attempted || 0);
+          const pct = Number.isFinite(Number(row.shooting?.[key]?.pct))
+            ? Number(row.shooting[key].pct) / 100
+            : attempted ? (made / attempted) : 0;
+          return escapeHtml(`${made}-${attempted} (${fmtPct(pct)})`);
+        }
+        case "assistedPct":
+          return escapeHtml(fmtPct(row.shooting?.assistedPct || 0));
+        default:
+          return escapeHtml(row[key] ?? "--");
+      }
+    }
+
+    function getHeatStyle(rows, key, row) {
+      if (!heatEnabled || key === "name") return "";
+      const values = rows.map((item) => comparableValue(item, key)).filter((value) => Number.isFinite(value));
+      if (!values.length) return "";
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      if (max === min) return "";
+      const current = comparableValue(row, key);
+      const ratio = (current - min) / (max - min);
+      const alpha = 0.12 + (ratio * 0.22);
+      return `background: rgba(74, 144, 217, ${alpha});`;
+    }
+
+    function renderTable() {
+      const rows = filterRows().slice().sort((a, b) => {
+        const left = comparableValue(a, currentSort.key);
+        const right = comparableValue(b, currentSort.key);
+        if (typeof left === "string") return currentSort.asc ? left.localeCompare(right) : right.localeCompare(left);
+        return currentSort.asc ? left - right : right - left;
+      });
+      const columns = TAB_COLUMNS[currentTab];
+
+      document.getElementById("stats-head").innerHTML = `<tr>${columns.map((column) => {
+        const arrow = currentSort.key === column.key ? (currentSort.asc ? " ▲" : " ▼") : "";
+        return `<th data-sort="${column.key}">${escapeHtml(column.label + arrow)}</th>`;
+      }).join("")}</tr>`;
+
+      document.getElementById("stats-body").innerHTML = rows.map((row) => `
+        <tr>
+          ${columns.map((column) => `<td style="${getHeatStyle(rows, column.key, row)}">${column.key === "name" ? renderValue(row, column.key) : escapeHtml(renderValue(row, column.key).replace(/<[^>]+>/g, ""))}</td>`).join("")}
+        </tr>
+      `).join("").replace(/&lt;a class=&quot;cell-link&quot; href=&quot;([^"]+)&quot;&gt;([^<]*)&lt;\/a&gt;/g, '<a class="cell-link" href="$1">$2</a>');
+    }
+
+    function updateButtonState(selector, activeValue, attr) {
+      document.querySelectorAll(selector).forEach((button) => {
+        const active = button.dataset[attr] === activeValue;
+        button.className = `btn ${active ? "btn--secondary is-active" : "btn--ghost"}`;
+      });
+    }
+
+    function exportCsv() {
+      const rows = filterRows();
+      const columns = TAB_COLUMNS[currentTab];
+      const header = columns.map((column) => `"${column.label}"`).join(",");
+      const body = rows.map((row) => columns.map((column) => {
+        const text = renderValue(row, column.key).replace(/<[^>]+>/g, "");
+        return `"${String(text).replace(/"/g, '""')}"`;
+      }).join(","));
+      const blob = new Blob([[header, ...body].join("\n")], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `bbnstats-player-stats-${getHelpers().utils.getSeason()}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    async function loadStatsPage() {
+      const { api, utils, printer } = getHelpers();
+      const season = utils.getSeason ? utils.getSeason() : 2026;
+      printer.bindExportButtons({ pageName: "stats", elementId: "main-content" });
+      document.getElementById("stats-title").textContent = seasonLabel(season);
+
+      document.body.addEventListener("click", (event) => {
+        const sortHeader = event.target.closest("#stats-table th[data-sort]");
+        if (sortHeader) {
+          const key = sortHeader.dataset.sort;
+          currentSort = { key, asc: currentSort.key === key ? !currentSort.asc : key === "name" };
+          renderTable();
+          return;
+        }
+      });
+
+      document.querySelectorAll("[data-season-type]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentSeasonType = button.dataset.seasonType;
+          updateButtonState("[data-season-type]", currentSeasonType, "seasonType");
+          renderTable();
+        });
+      });
+
+      document.querySelectorAll("[data-stat-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentMode = button.dataset.statMode;
+          updateButtonState("[data-stat-mode]", currentMode, "statMode");
+          renderTable();
+        });
+      });
+
+      document.querySelectorAll("[data-stat-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentTab = button.dataset.statTab;
+          updateButtonState("[data-stat-tab]", currentTab, "statTab");
+          renderTable();
+        });
+      });
+
+      document.getElementById("heat-toggle").addEventListener("click", () => {
+        heatEnabled = !heatEnabled;
+        document.getElementById("heat-toggle").textContent = heatEnabled ? "Heat Colors On" : "Heat Colors Off";
+        renderTable();
+      });
+
+      document.getElementById("export-csv").addEventListener("click", exportCsv);
+
+      try {
+        const [statsResponse, shootingResponse] = await Promise.all([
+          api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
+          api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season })
+        ]);
+
+        allStatsRows = normalizeRows(statsResponse, shootingResponse);
+        renderTable();
+      } catch (error) {
+        document.getElementById("stats-body").innerHTML = `<tr><td colspan="20">Unable to load player stats. ${escapeHtml(error?.message || "Please try again later.")}</td></tr>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadStatsPage);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Player Profile</title>
+  <meta name="description" content="Kentucky player profile with season stats, advanced metrics, game log, charts, and shot chart.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .player-hero {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+      gap: 24px;
+      align-items: end;
+    }
+
+    .player-header-name {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 5vw, 4.6rem);
+      letter-spacing: 0.03em;
+      line-height: 0.94;
+      text-transform: uppercase;
+    }
+
+    .player-header-number {
+      color: var(--uk-light-blue);
+      font-family: var(--font-display);
+      font-size: clamp(4rem, 9vw, 7rem);
+      line-height: 0.88;
+      text-align: right;
+    }
+
+    .player-meta-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--text-secondary);
+    }
+
+    .player-meta-list span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 12px;
+      border: 1px solid rgba(74, 144, 217, 0.18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .season-bar,
+    .advanced-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .season-bar {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .advanced-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .metric-card--compact {
+      min-height: 126px;
+      padding: 18px;
+    }
+
+    .metric-card--compact .metric-value {
+      font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+    }
+
+    .profile-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+      gap: 24px;
+    }
+
+    .profile-chart-card {
+      min-height: 100%;
+    }
+
+    .shooting-table td,
+    .zone-table td {
+      font-size: 0.9rem;
+    }
+
+    .shotchart-empty {
+      min-height: 340px;
+    }
+
+    .chart-toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .player-log-row {
+      cursor: pointer;
+    }
+
+    .player-log-row:hover {
+      background: rgba(74, 144, 217, 0.08);
+    }
+
+    @media (max-width: 1024px) {
+      .season-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .advanced-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .player-hero,
+      .profile-split,
+      .season-bar,
+      .advanced-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .player-header-number {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body data-page="player">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="player-header" class="hero-banner">
+        <div class="player-hero">
+          <div class="stack stack--lg">
+            <div class="skeleton skeleton--title"></div>
+            <div class="skeleton skeleton--stat"></div>
+            <div class="skeleton skeleton--text"></div>
+            <div class="skeleton skeleton--text"></div>
+          </div>
+          <div class="card">
+            <div class="skeleton skeleton--stat"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Season Averages</h2>
+          <p class="section-copy">Core production and efficiency indicators for the selected season.</p>
+        </div>
+      </div>
+      <div id="season-bar" class="season-bar">
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Advanced Profile</h2>
+          <p class="section-copy">Usage, ratings, win shares, and impact metrics from the season stat line.</p>
+        </div>
+      </div>
+      <div id="advanced-grid" class="advanced-grid">
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card metric-card--compact"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+      </div>
+    </section>
+
+    <section class="section profile-split">
+      <div class="chart-shell profile-chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">Shot Type Breakdown</h2>
+            <p class="chart-copy">Distribution of shot attempts by type, with made/attempted splits below.</p>
+          </div>
+        </div>
+        <div id="shooting-breakdown" class="chart-wrap">
+          <div class="chart-frame">
+            <div class="chart-skeleton skeleton"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-shell profile-chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">Shot Chart</h2>
+              <p class="chart-copy">NBA-style zone chart for this player's own shot attempts in the selected season.</p>
+          </div>
+        </div>
+        <div id="shotchart-section" class="chart-wrap">
+          <div class="chart-frame">
+            <div class="chart-skeleton skeleton"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section profile-split">
+      <div class="chart-shell profile-chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">Performance Trend</h2>
+            <p class="chart-copy">Game-by-game production with quick toggles for points, rebounds, and assists.</p>
+          </div>
+        </div>
+        <div id="trend-section" class="chart-wrap">
+          <div class="chart-frame">
+            <div class="chart-skeleton skeleton"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-shell profile-chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">Radar Profile</h2>
+            <p class="chart-copy">Normalized profile against the rest of Kentucky's roster in the same season.</p>
+          </div>
+        </div>
+        <div id="radar-section" class="chart-wrap">
+          <div class="chart-frame">
+            <div class="chart-skeleton skeleton"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Game Log</h2>
+          <p class="section-copy">Sortable game-by-game table with core production, efficiency, and starter status.</p>
+        </div>
+      </div>
+      <div id="game-log-shell" class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note">Click a row to jump to the corresponding game page.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table sortable-table" id="game-log-table">
+            <thead>
+              <tr>
+                <th data-sort="date">Date</th>
+                <th data-sort="opponent">Opponent</th>
+                <th data-sort="result">Result</th>
+                <th data-sort="minutes">MIN</th>
+                <th data-sort="points">PTS</th>
+                <th data-sort="rebounds">REB</th>
+                <th data-sort="assists">AST</th>
+                <th data-sort="steals">STL</th>
+                <th data-sort="blocks">BLK</th>
+                <th data-sort="turnovers">TO</th>
+                <th data-sort="fieldGoals">FG</th>
+                <th data-sort="threePointFieldGoals">3P</th>
+                <th data-sort="freeThrows">FT</th>
+                <th data-sort="effectiveFieldGoalPct">eFG%</th>
+                <th data-sort="trueShootingPct">TS%</th>
+                <th data-sort="offensiveRating">OffRtg</th>
+                <th data-sort="defensiveRating">DefRtg</th>
+                <th data-sort="usage">Usage</th>
+                <th data-sort="gameScore">GameScore</th>
+                <th data-sort="starter">Starter</th>
+              </tr>
+            </thead>
+            <tbody id="game-log-body">
+              <tr><td colspan="20"><div class="loading-state">Loading game log...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/shotchart.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    let gameLogRows = [];
+    let gameLogSort = { key: "date", asc: true };
+    let trendChartMode = "points";
+    let shotChartController = null;
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        shotchart: window.BBNStatsShotChart || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (value && Array.isArray(value.value)) {
+        return value.value;
+      }
+
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getQueryParam(name) {
+      return new URLSearchParams(window.location.search).get(name);
+    }
+
+    function getPageSeason() {
+      const querySeason = Number.parseInt(getQueryParam("season"), 10);
+      if (!Number.isNaN(querySeason)) {
+        return querySeason;
+      }
+
+      return typeof getHelpers().utils.getSeason === "function" ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)} Season`;
+    }
+
+    function formatPosition(position) {
+      const value = String(position || "");
+
+      if (value.toLowerCase().startsWith("guard")) {
+        return "Guard";
+      }
+
+      if (value.toLowerCase().startsWith("forward")) {
+        return "Forward";
+      }
+
+      if (value.toLowerCase().startsWith("center")) {
+        return "Center";
+      }
+
+      return value || "--";
+    }
+
+    function getClassYear(player, season) {
+      if (typeof getHelpers().utils.getPlayerClassYear === "function") {
+        return getHelpers().utils.getPlayerClassYear(player, season);
+      }
+
+      const start = Number(player?.startSeason || season);
+      const years = Math.max(0, season - start);
+      const labels = ["Fr.", "So.", "Jr.", "Sr."];
+      return labels[Math.min(years, labels.length - 1)] || "Fr.";
+    }
+
+    function hometownLabel(player) {
+      const city = player?.hometown?.city;
+      const state = player?.hometown?.state;
+      if (city && state) {
+        return `${city}, ${state}`;
+      }
+      return city || state || "--";
+    }
+
+    function getPerGame(total, games) {
+      const totalNum = Number(total || 0);
+      const gamesNum = Number(games || 0);
+      return gamesNum ? (totalNum / gamesNum).toFixed(1) : "0.0";
+    }
+
+    function formatPerGameShooting(statGroup, games) {
+      const made = getPerGame(statGroup?.made, games);
+      const attempted = getPerGame(statGroup?.attempted, games);
+      const pct = getHelpers().utils.fmtPct(statGroup?.pct);
+      return `${made}-${attempted} (${pct})`;
+    }
+
+    function metricCard(label, value, meta = "") {
+      return `
+        <article class="card metric-card--compact metric-card">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${escapeHtml(value)}</div>
+          ${meta ? `<div class="card-copy">${escapeHtml(meta)}</div>` : ""}
+        </article>
+      `;
+    }
+
+    function createErrorState(title, message) {
+      return `
+        <div class="error-state section-state">
+          <h3 class="card-title">${escapeHtml(title)}</h3>
+          <p>${escapeHtml(message)}</p>
+        </div>
+      `;
+    }
+
+    function findPlayerStatLine(statsResponse, athleteId) {
+      return safeArray(statsResponse).find((player) => Number(player.athleteId) === Number(athleteId)) || null;
+    }
+
+    function findRosterPlayer(rosterResponse, athleteId) {
+      const rosterGroup = safeArray(rosterResponse)[0];
+      return safeArray(rosterGroup?.players).find((player) => Number(player.id) === Number(athleteId)) || null;
+    }
+
+    function findPlayerShooting(shootingResponse, athleteId) {
+      return safeArray(shootingResponse).find((player) => Number(player.athleteId) === Number(athleteId)) || null;
+    }
+
+    function normalizeGameLog(gamesPlayersResponse, athleteId, athleteSourceId, athleteName) {
+      return safeArray(gamesPlayersResponse)
+        .map((game) => {
+          const player = safeArray(game.players).find((entry) => {
+            if (Number(entry.athleteId) === Number(athleteId)) {
+              return true;
+            }
+
+            if (athleteSourceId && String(entry.athleteSourceId || "") === String(athleteSourceId)) {
+              return true;
+            }
+
+            if (athleteName && String(entry.name || "").toLowerCase() === String(athleteName).toLowerCase()) {
+              return true;
+            }
+
+            return false;
+          });
+          if (!player) {
+            return null;
+          }
+
+          return {
+            gameId: game.gameId,
+            startDate: game.startDate,
+            opponent: game.opponent,
+            result: `${game.team} ${player.points}`,
+            game,
+            player,
+            minutes: Number(player.minutes || 0),
+            points: Number(player.points || 0),
+            rebounds: Number(player.rebounds?.total || 0),
+            assists: Number(player.assists || 0),
+            steals: Number(player.steals || 0),
+            blocks: Number(player.blocks || 0),
+            turnovers: Number(player.turnovers || 0),
+            effectiveFieldGoalPct: Number(player.effectiveFieldGoalPct || 0),
+            trueShootingPct: Number(player.trueShootingPct || 0),
+            offensiveRating: Number(player.offensiveRating || 0),
+            defensiveRating: Number(player.defensiveRating || 0),
+            usage: Number(player.usage || 0),
+            gameScore: Number(player.gameScore || 0),
+            starter: Boolean(player.starter)
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    }
+
+    function normalizeShotPlays(plays) {
+      return safeArray(plays).filter((play) => (
+        play?.shotInfo &&
+        play?.shotInfo?.location &&
+        play?.shotInfo?.location?.x !== null &&
+        play?.shotInfo?.location?.y !== null
+      ));
+    }
+
+      function buildZoneSummaryRows(zoneSummary) {
+        const preferredOrder = [
+          "restricted",
+          "shortMidL",
+          "shortMidR",
+          "shortMidCenter",
+          "midL",
+          "midR",
+          "midCenter",
+          "corner3L",
+          "corner3R",
+          "wing3L",
+          "wing3R",
+          "center3"
+        ];
+
+        return preferredOrder
+          .map((key) => zoneSummary?.[key])
+          .filter(Boolean)
+          .map((row) => `
+            <tr>
+              <td>${escapeHtml(row.label)}</td>
+              <td>${escapeHtml(row.made)}</td>
+              <td>${escapeHtml(row.attempted)}</td>
+              <td>${escapeHtml((row.pct * 100).toFixed(2))}%</td>
+            </tr>
+          `)
+          .join("");
+      }
+
+      function syncZoneTable(summary) {
+        const body = document.getElementById("shot-zone-body");
+
+        if (!body) {
+          return;
+        }
+
+        body.innerHTML = buildZoneSummaryRows(summary);
+      }
+
+    function renderHeader(rosterPlayer, statLine, season) {
+      const header = document.getElementById("player-header");
+      header.innerHTML = `
+        <div class="player-hero">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">${escapeHtml(seasonLabel(season))}</span>
+              <div class="player-header-name">${escapeHtml(statLine?.name || rosterPlayer?.name || "Unknown Player")}</div>
+            </div>
+            <div class="player-meta-list">
+              <span>${escapeHtml(formatPosition(rosterPlayer?.position || statLine?.position))}</span>
+              <span>${escapeHtml(getHelpers().utils.heightInches(rosterPlayer?.height))}</span>
+              <span>${escapeHtml(`${rosterPlayer?.weight || "--"} lbs`)}</span>
+              <span>${escapeHtml(getClassYear(rosterPlayer, season))}</span>
+              <span>${escapeHtml(hometownLabel(rosterPlayer))}</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="metric-label">Jersey</div>
+            <div class="player-header-number">${escapeHtml(rosterPlayer?.jersey || "--")}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSeasonBar(statLine) {
+      const games = Number(statLine?.games || 0);
+      document.getElementById("season-bar").innerHTML = [
+        metricCard("PPG", getPerGame(statLine?.points, games)),
+        metricCard("RPG", getPerGame(statLine?.rebounds?.total, games)),
+        metricCard("APG", getPerGame(statLine?.assists, games)),
+        metricCard("SPG", getPerGame(statLine?.steals, games)),
+        metricCard("BPG", getPerGame(statLine?.blocks, games)),
+        metricCard("MPG", getPerGame(statLine?.minutes, games)),
+        metricCard("FG", formatPerGameShooting(statLine?.fieldGoals, games)),
+        metricCard("3P", formatPerGameShooting(statLine?.threePointFieldGoals, games)),
+        metricCard("FT", formatPerGameShooting(statLine?.freeThrows, games)),
+        metricCard("TS%", getHelpers().utils.fmtPct(statLine?.trueShootingPct))
+      ].join("");
+    }
+
+    function renderAdvancedGrid(statLine) {
+      document.getElementById("advanced-grid").innerHTML = [
+        metricCard("Usage%", `${getHelpers().utils.fmtNum(statLine?.usage, 1)}%`),
+        metricCard("OffRtg", getHelpers().utils.fmtNum(statLine?.offensiveRating, 1)),
+        metricCard("DefRtg", getHelpers().utils.fmtNum(statLine?.defensiveRating, 1)),
+        metricCard("NetRtg", getHelpers().utils.fmtNum(statLine?.netRating, 1)),
+        metricCard("PORPAG", getHelpers().utils.fmtNum(statLine?.PORPAG, 1)),
+        metricCard("Win Shares", getHelpers().utils.fmtNum(statLine?.winShares?.total, 1)),
+        metricCard("WS/40", getHelpers().utils.fmtNum(statLine?.winShares?.totalPer40, 3)),
+        metricCard("eFG%", getHelpers().utils.fmtPct(statLine?.effectiveFieldGoalPct)),
+        metricCard("TS%", getHelpers().utils.fmtPct(statLine?.trueShootingPct)),
+        metricCard("FT Rate", getHelpers().utils.fmtNum(statLine?.freeThrowRate, 1)),
+        metricCard("OReb%", getHelpers().utils.fmtNum(statLine?.offensiveReboundPct, 1)),
+        metricCard("AST/TO", getHelpers().utils.fmtNum(statLine?.assistsTurnoverRatio, 2))
+      ].join("");
+    }
+
+    function renderShootingBreakdown(shootingLine) {
+      const target = document.getElementById("shooting-breakdown");
+
+      if (!shootingLine) {
+        target.innerHTML = createErrorState("No shooting data", "The API did not return season shooting breakdown data for this player.");
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="chart-wrap">
+          <div class="chart-frame">
+            <canvas id="shooting-donut" aria-label="Shot distribution donut chart"></canvas>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table shooting-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Made</th>
+                <th>Att</th>
+                <th>Pct</th>
+                <th>Ast%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[
+                ["Dunks", shootingLine.dunks],
+                ["Layups", shootingLine.layups],
+                ["Tip-Ins", shootingLine.tipIns],
+                ["2P Jumpers", shootingLine.twoPointJumpers],
+                ["3P Jumpers", shootingLine.threePointJumpers]
+              ].map(([label, row]) => `
+                <tr>
+                  <td>${escapeHtml(label)}</td>
+                  <td>${escapeHtml(row?.made ?? 0)}</td>
+                  <td>${escapeHtml(row?.attempted ?? 0)}</td>
+                  <td>${escapeHtml(getHelpers().utils.fmtPct(row?.pct ?? 0))}</td>
+                  <td>${escapeHtml(row?.assistedPct !== undefined ? getHelpers().utils.fmtPct(row.assistedPct) : "--")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      getHelpers().charts.donutChart(
+        "shooting-donut",
+        ["Dunks", "Layups", "Tip-Ins", "2P Jumpers", "3P Jumpers"],
+        [
+          Number(shootingLine.attemptsBreakdown?.dunks || 0),
+          Number(shootingLine.attemptsBreakdown?.layups || 0),
+          Number(shootingLine.attemptsBreakdown?.tipIns || 0),
+          Number(shootingLine.attemptsBreakdown?.twoPointJumpers || 0),
+          Number(shootingLine.attemptsBreakdown?.threePointJumpers || 0)
+        ]
+      );
+    }
+
+      function renderShotChart(shotPlays, athleteId) {
+        const target = document.getElementById("shotchart-section");
+
+        const playerShots = safeArray(shotPlays).filter((play) => Number(play?.shotInfo?.shooter?.id) === Number(athleteId));
+
+      if (!playerShots.length) {
+        target.innerHTML = '<div class="chart-empty shotchart-empty"><h3 class="card-title">No shot data available</h3><p>This player does not have chartable shot locations for the selected season.</p></div>';
+        return;
+      }
+
+        const normalizedShots = normalizeShotPlays(playerShots);
+
+        target.innerHTML = `
+          <div class="chart-toggle-row">
+            <button class="chart-toggle" type="button" data-chart-view="zone">Zone Chart</button>
+            <button class="chart-toggle is-active" type="button" data-chart-view="dots">Shot Dots</button>
+            <button class="chart-toggle" type="button" data-chart-view="heatmap">Heatmap</button>
+          </div>
+          <div class="chart-toggle-row" style="margin-top: 10px;">
+            <button class="chart-toggle is-active" type="button" data-shot-filter="all">All Attempts</button>
+            <button class="chart-toggle" type="button" data-shot-filter="made">Made Only</button>
+            <button class="chart-toggle" type="button" data-shot-filter="missed">Missed Only</button>
+            <button class="chart-toggle" type="button" data-shot-filter="assisted">Assisted Attempts</button>
+            <button class="chart-toggle" type="button" data-shot-filter="unassisted">Self-Created</button>
+          </div>
+          <div class="shot-chart">
+            <div class="shot-chart__surface">
+              <canvas id="player-shot-chart" width="640" height="580" aria-label="Player shot chart"></canvas>
+            </div>
+          </div>
+          <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-secondary" type="button" id="save-shot-chart">Save Chart</button>
+          </div>
+          <div class="table-responsive" style="margin-top: 16px;">
+            <table class="data-table zone-table">
+              <thead>
+                <tr>
+                  <th>Zone</th>
+                <th>Made</th>
+                <th>Att</th>
+                  <th>Pct</th>
+                </tr>
+              </thead>
+              <tbody id="shot-zone-body"></tbody>
+            </table>
+          </div>
+        `;
+
+      if (shotChartController) {
+        shotChartController.destroy();
+      }
+
+        shotChartController = getHelpers().shotchart.createShotChart(
+          document.getElementById("player-shot-chart"),
+          normalizedShots,
+          { mode: "dots", filter: "all" }
+        );
+
+        syncZoneTable(shotChartController.getZoneSummary());
+
+        target.querySelectorAll("[data-chart-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            target.querySelectorAll("[data-chart-view]").forEach((item) => item.classList.remove("is-active"));
+            button.classList.add("is-active");
+
+            const nextMode = button.dataset.chartView;
+            shotChartController.setMode(nextMode);
+            syncZoneTable(shotChartController.getZoneSummary());
+          });
+        });
+
+        target.querySelectorAll("[data-shot-filter]").forEach((button) => {
+          button.addEventListener("click", () => {
+            target.querySelectorAll("[data-shot-filter]").forEach((item) => item.classList.remove("is-active"));
+            button.classList.add("is-active");
+            shotChartController.setFilter(button.dataset.shotFilter);
+            syncZoneTable(shotChartController.getZoneSummary());
+          });
+        });
+
+        const saveButton = document.getElementById("save-shot-chart");
+
+        if (saveButton) {
+          saveButton.addEventListener("click", () => {
+            shotChartController.downloadImage(`player-shot-chart-${athleteId}.png`);
+          });
+        }
+      }
+
+    function renderTrendChart(gameLog) {
+      const target = document.getElementById("trend-section");
+
+      if (!gameLog.length) {
+        target.innerHTML = createErrorState("No game log data", "This player does not have game-by-game stats available for the selected season.");
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="chart-toggle-row">
+          <button class="chart-toggle is-active" type="button" data-trend="points">Points</button>
+          <button class="chart-toggle" type="button" data-trend="rebounds">Rebounds</button>
+          <button class="chart-toggle" type="button" data-trend="assists">Assists</button>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-frame">
+            <canvas id="trend-chart" aria-label="Performance trend chart"></canvas>
+          </div>
+        </div>
+      `;
+
+      const drawTrend = () => {
+        const labels = gameLog.map((row) => getHelpers().utils.formatDate(row.startDate));
+        const labelMap = { points: "Points", rebounds: "Rebounds", assists: "Assists" };
+        const colorMap = { points: "#4A90D9", rebounds: "#27AE60", assists: "#F1C40F" };
+
+        getHelpers().charts.lineChart("trend-chart", labels, [
+          {
+            label: labelMap[trendChartMode],
+            data: gameLog.map((row) => row[trendChartMode]),
+            borderColor: colorMap[trendChartMode],
+            backgroundColor: `${colorMap[trendChartMode]}33`,
+            fill: true
+          }
+        ]);
+      };
+
+      drawTrend();
+
+      target.querySelectorAll("[data-trend]").forEach((button) => {
+        button.addEventListener("click", () => {
+          trendChartMode = button.dataset.trend;
+          target.querySelectorAll("[data-trend]").forEach((item) => item.classList.remove("is-active"));
+          button.classList.add("is-active");
+          drawTrend();
+        });
+      });
+    }
+
+    function renderRadarChart(statLine, allPlayers) {
+      const target = document.getElementById("radar-section");
+
+      if (!statLine) {
+        target.innerHTML = createErrorState("No radar data", "This player does not have enough season data for a radar profile.");
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="chart-wrap">
+          <div class="chart-frame">
+            <canvas id="radar-chart" aria-label="Player radar chart"></canvas>
+          </div>
+        </div>
+      `;
+
+      const players = safeArray(allPlayers);
+      const games = Number(statLine.games || 0);
+      const metrics = [
+        { key: "scoring", label: "Scoring", value: Number(getPerGame(statLine.points, games)) },
+        { key: "rebounding", label: "Rebounding", value: Number(getPerGame(statLine.rebounds?.total, games)) },
+        { key: "playmaking", label: "Playmaking", value: Number(getPerGame(statLine.assists, games)) },
+        { key: "defense", label: "Defense", value: Number(getPerGame(statLine.steals + statLine.blocks, games)) },
+        { key: "efficiency", label: "Efficiency", value: Number(statLine.trueShootingPct || 0) * 100 },
+        { key: "shooting", label: "Shooting", value: Number(statLine.threePointFieldGoals?.pct || 0) }
+      ];
+
+      const maxMap = {
+        scoring: Math.max(...players.map((player) => Number(getPerGame(player.points, player.games))), 1),
+        rebounding: Math.max(...players.map((player) => Number(getPerGame(player.rebounds?.total, player.games))), 1),
+        playmaking: Math.max(...players.map((player) => Number(getPerGame(player.assists, player.games))), 1),
+        defense: Math.max(...players.map((player) => Number(getPerGame((player.steals || 0) + (player.blocks || 0), player.games))), 1),
+        efficiency: Math.max(...players.map((player) => Number(player.trueShootingPct || 0) * 100), 1),
+        shooting: Math.max(...players.map((player) => Number(player.threePointFieldGoals?.pct || 0)), 1)
+      };
+
+      getHelpers().charts.radarChart("radar-chart", metrics.map((item) => item.label), [
+        {
+          label: statLine.name,
+          data: metrics.map((item) => ((item.value / maxMap[item.key]) * 100).toFixed(1))
+        }
+      ], {
+        scales: {
+          r: {
+            max: 100,
+            ticks: {
+              stepSize: 20
+            }
+          }
+        }
+      });
+    }
+
+    function renderGameLogTable() {
+      const body = document.getElementById("game-log-body");
+
+      if (!gameLogRows.length) {
+        body.innerHTML = `<tr><td colspan="20">${createErrorState("No game log data", "No player game logs were returned for this season.")}</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = gameLogRows.map((row) => `
+        <tr class="player-log-row" data-game-id="${escapeHtml(row.gameId)}">
+          <td>${escapeHtml(getHelpers().utils.formatDate(row.startDate))}</td>
+          <td>${escapeHtml(row.game.opponent)}</td>
+          <td>${escapeHtml(row.result || "--")}</td>
+          <td>${escapeHtml(row.player.minutes)}</td>
+          <td class="${row.points >= 20 ? "accent-green" : row.points <= 5 ? "accent-red" : ""}">${escapeHtml(row.player.points)}</td>
+          <td>${escapeHtml(row.player.rebounds?.total)}</td>
+          <td>${escapeHtml(row.player.assists)}</td>
+          <td>${escapeHtml(row.player.steals)}</td>
+          <td>${escapeHtml(row.player.blocks)}</td>
+          <td>${escapeHtml(row.player.turnovers)}</td>
+          <td>${escapeHtml(row.fieldGoals || `${row.player.fieldGoals?.made}-${row.player.fieldGoals?.attempted}`)}</td>
+          <td>${escapeHtml(row.threePointFieldGoals || `${row.player.threePointFieldGoals?.made}-${row.player.threePointFieldGoals?.attempted}`)}</td>
+          <td>${escapeHtml(row.freeThrows || `${row.player.freeThrows?.made}-${row.player.freeThrows?.attempted}`)}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtPct(row.player.effectiveFieldGoalPct))}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtPct(row.player.trueShootingPct))}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtNum(row.player.offensiveRating, 1))}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtNum(row.player.defensiveRating, 1))}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtNum(row.player.usage, 1))}</td>
+          <td>${escapeHtml(getHelpers().utils.fmtNum(row.player.gameScore, 1))}</td>
+          <td>${escapeHtml(row.player.starter ? "Y" : "N")}</td>
+        </tr>
+      `).join("");
+
+      body.querySelectorAll("[data-game-id]").forEach((row) => {
+        row.addEventListener("click", () => {
+          window.location.href = `game.html?id=${encodeURIComponent(row.dataset.gameId)}`;
+        });
+      });
+    }
+
+    function getSortValue(row, key) {
+      if (key === "date") return new Date(row.startDate).getTime();
+      if (["opponent", "result", "fieldGoals", "threePointFieldGoals", "freeThrows"].includes(key)) return row[key] || "";
+      if (key === "starter") return row.player.starter ? 1 : 0;
+      return row[key];
+    }
+
+    function sortGameLog(key, asc) {
+      gameLogRows = gameLogRows.slice().sort((a, b) => {
+        const aValue = getSortValue(a, key);
+        const bValue = getSortValue(b, key);
+
+        if (typeof aValue === "string" || typeof bValue === "string") {
+          return asc ? String(aValue).localeCompare(String(bValue)) : String(bValue).localeCompare(String(aValue));
+        }
+
+        return asc ? Number(aValue || 0) - Number(bValue || 0) : Number(bValue || 0) - Number(aValue || 0);
+      });
+
+      gameLogSort = { key, asc };
+      renderGameLogTable();
+      updateGameLogSortIndicators();
+    }
+
+    function updateGameLogSortIndicators() {
+      document.querySelectorAll("#game-log-table th[data-sort]").forEach((header) => {
+        if (header.dataset.sort === gameLogSort.key) {
+          header.dataset.asc = String(gameLogSort.asc);
+        } else {
+          header.removeAttribute("data-asc");
+        }
+      });
+    }
+
+    function bindGameLogSorting() {
+      document.querySelectorAll("#game-log-table th[data-sort]").forEach((header) => {
+        header.addEventListener("click", () => {
+          const key = header.dataset.sort;
+          const asc = gameLogSort.key === key ? !gameLogSort.asc : true;
+          sortGameLog(key, asc);
+        });
+      });
+    }
+
+    function renderPageError(message) {
+      document.getElementById("player-header").innerHTML = createErrorState("Unable to load player profile", message);
+      document.getElementById("season-bar").innerHTML = createErrorState("Missing season stats", message);
+      document.getElementById("advanced-grid").innerHTML = createErrorState("Missing advanced stats", message);
+      document.getElementById("shooting-breakdown").innerHTML = createErrorState("Missing shooting data", message);
+      document.getElementById("shotchart-section").innerHTML = createErrorState("Missing shot chart", message);
+      document.getElementById("trend-section").innerHTML = createErrorState("Missing trend chart", message);
+      document.getElementById("radar-section").innerHTML = createErrorState("Missing radar chart", message);
+      document.getElementById("game-log-body").innerHTML = `<tr><td colspan="20">${createErrorState("Missing game log", message)}</td></tr>`;
+    }
+
+    async function loadPlayerPage() {
+      const athleteId = Number.parseInt(getQueryParam("id"), 10);
+      const season = getPageSeason();
+      const { api, printer } = getHelpers();
+
+      printer.bindExportButtons({ pageName: `player-${athleteId || "profile"}`, elementId: "main-content" });
+
+      if (Number.isNaN(athleteId)) {
+        renderPageError("Player id is missing from the URL.");
+        return;
+      }
+
+      try {
+        const [
+          rosterResponse,
+          statsResponse,
+          shootingResponse,
+          gamesPlayersResponse,
+          shotPlaysResponse,
+          gamesResponse
+        ] = await Promise.all([
+          api.apiFetch("/teams/roster", { team: TEAM_NAME, season }),
+          api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
+          api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season }),
+          api.apiFetch("/games/players", { team: TEAM_NAME, season }),
+          api.apiFetch(`/plays/player/${athleteId}`, { season, shootingPlaysOnly: true }),
+          api.apiFetch("/games", { team: TEAM_NAME, season })
+        ]);
+
+        const rosterPlayer = findRosterPlayer(rosterResponse, athleteId);
+        const statLine = findPlayerStatLine(statsResponse, athleteId);
+        const shootingLine = findPlayerShooting(shootingResponse, athleteId);
+
+        if (!rosterPlayer && !statLine) {
+          renderPageError("This player was not found for the selected season.");
+          return;
+        }
+
+        renderHeader(rosterPlayer || {}, statLine || {}, season);
+        renderSeasonBar(statLine || {});
+        renderAdvancedGrid(statLine || {});
+        renderShootingBreakdown(shootingLine);
+          renderShotChart(shotPlaysResponse, athleteId);
+
+        const gamesMap = new Map(safeArray(gamesResponse).map((game) => [Number(game.id), game]));
+        const athleteSourceId = statLine?.athleteSourceId || rosterPlayer?.sourceId || null;
+        const athleteName = statLine?.name || rosterPlayer?.name || null;
+
+        gameLogRows = normalizeGameLog(gamesPlayersResponse, athleteId, athleteSourceId, athleteName).map((row) => {
+          const metadata = gamesMap.get(Number(row.gameId)) || {};
+          return {
+            ...row,
+            metadata,
+            result: metadata.id ? getHelpers().utils.getResult(metadata, TEAM_NAME) : "--",
+            fieldGoals: `${row.player.fieldGoals?.made || 0}-${row.player.fieldGoals?.attempted || 0}`,
+            threePointFieldGoals: `${row.player.threePointFieldGoals?.made || 0}-${row.player.threePointFieldGoals?.attempted || 0}`,
+            freeThrows: `${row.player.freeThrows?.made || 0}-${row.player.freeThrows?.attempted || 0}`
+          };
+        });
+
+        renderTrendChart(gameLogRows);
+        renderRadarChart(statLine || {}, statsResponse);
+        renderGameLogTable();
+        bindGameLogSorting();
+        updateGameLogSortIndicators();
+      } catch (error) {
+        renderPageError(error?.message || "Please try again later.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadPlayerPage);
+  </script>
+</body>
+</html>

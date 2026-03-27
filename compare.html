@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Compare Players</title>
+  <meta name="description" content="Compare up to four Kentucky players across seasons with stats, charts, and shot profiles.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .selector-grid,
+    .quick-stats-grid,
+    .shot-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .selector-card {
+      min-height: 220px;
+    }
+
+    .selector-card__controls {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .selector-card__actions,
+    .view-tabs,
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .compare-select {
+      width: 100%;
+      border: 1px solid rgba(74, 144, 217, 0.24);
+      border-radius: 12px;
+      background: rgba(13, 31, 58, 0.92);
+      color: var(--text-primary);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .comparison-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .comparison-table th:first-child,
+    .comparison-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #101b34;
+      min-width: 180px;
+    }
+
+    .comparison-table td.is-best {
+      color: var(--uk-light-blue);
+      font-weight: 700;
+    }
+
+    .chart-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .slot-summary {
+      display: grid;
+      gap: 4px;
+    }
+
+    .shot-card canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+    }
+
+    .shot-card__meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .comparison-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(4, 8, 18, 0.84);
+      z-index: 50;
+    }
+
+    .comparison-modal.is-open {
+      display: flex;
+    }
+
+    .comparison-modal__panel {
+      width: min(900px, 100%);
+      max-height: 92vh;
+      overflow: auto;
+      background: var(--bg-card);
+      border: 1px solid rgba(74, 144, 217, 0.18);
+      border-radius: 20px;
+      padding: 20px;
+    }
+
+    .comparison-modal__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .comparison-modal__canvas {
+      width: 100%;
+      display: block;
+    }
+
+    .compare-helper {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="compare">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div class="hero-banner">
+        <span class="eyebrow">Player Comparison</span>
+        <h1 class="hero-title">Player Comparison Tool</h1>
+        <p class="lead">Compare up to four Kentucky players side by side across seasons, archetypes, shooting profiles, and shot charts.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Compare Players</h2>
+          <p class="section-copy">Pick seasons and players for up to four comparison slots.</p>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn--secondary" type="button" id="add-slot-btn">Add Player</button>
+          <button class="btn btn--ghost" type="button" id="copy-link-btn">Copy Link</button>
+        </div>
+      </div>
+      <div id="selector-grid" class="selector-grid"></div>
+    </section>
+
+    <section class="section">
+      <div id="compare-empty" class="compare-helper">Select at least one player to start building a comparison.</div>
+      <div id="compare-content" hidden>
+        <div class="comparison-toolbar">
+          <div class="view-tabs">
+            <button class="btn btn--secondary is-active" type="button" data-compare-tab="traditional">Traditional</button>
+            <button class="btn btn--ghost" type="button" data-compare-tab="advanced">Advanced</button>
+            <button class="btn btn--ghost" type="button" data-compare-tab="shooting">Shooting</button>
+          </div>
+          <div class="hero-support" id="compare-status">Loading comparison...</div>
+        </div>
+
+        <div id="quick-stats-grid" class="quick-stats-grid" style="margin-bottom: 20px;"></div>
+
+        <div class="table-shell" style="margin-bottom: 24px;">
+          <div class="table-responsive">
+            <table class="data-table comparison-table">
+              <thead id="comparison-head"></thead>
+              <tbody id="comparison-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <section class="chart-shell">
+            <div class="chart-header">
+              <div>
+                <h2 class="chart-title">Radar Profile</h2>
+                <p class="chart-copy">Normalized to the loaded Kentucky player pool across the selected seasons.</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-frame" id="radar-frame">
+                <canvas id="compare-radar-chart" aria-label="Comparison radar chart"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <section class="chart-shell">
+            <div class="chart-header">
+              <div>
+                <h2 class="chart-title">Key Stats</h2>
+                <p class="chart-copy">Grouped bars for points, rebounds, assists, and true shooting.</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-frame" id="bar-frame">
+                <canvas id="compare-bar-chart" aria-label="Comparison bar chart"></canvas>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="section" style="padding: 0; margin-top: 24px;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Shot Chart Grid</h2>
+              <p class="section-copy">Mini zone charts for each selected player. Click a chart to expand it.</p>
+            </div>
+          </div>
+          <div id="shot-grid" class="shot-grid"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="comparison-modal" class="comparison-modal" aria-hidden="true">
+    <div class="comparison-modal__panel">
+      <div class="comparison-modal__header">
+        <div>
+          <div class="eyebrow">Expanded Shot Chart</div>
+          <h2 class="section-title" id="modal-title">Shot Chart</h2>
+        </div>
+        <button class="btn btn--ghost" type="button" id="close-modal-btn">Close</button>
+      </div>
+      <canvas id="comparison-modal-canvas" class="comparison-modal__canvas" aria-label="Expanded comparison shot chart"></canvas>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/shotchart.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    const MAX_SLOTS = 4;
+    const COMPARE_SEASON_OPTIONS = Array.from({ length: 2026 - 2000 + 1 }, (_, index) => 2026 - index);
+    const SLOT_KEYS = ["c1", "c2", "c3", "c4"];
+    const SLOT_COLORS = ["#3B82F6", "#EF4444", "#F59E0B", "#10B981"];
+    const TAB_DEFS = {
+      traditional: [
+        { key: "games", label: "Games", format: "num", higherBetter: true },
+        { key: "minutesPerGame", label: "MPG", format: "num", higherBetter: true },
+        { key: "pointsPerGame", label: "PPG", format: "num", higherBetter: true },
+        { key: "reboundsPerGame", label: "RPG", format: "num", higherBetter: true },
+        { key: "assistsPerGame", label: "APG", format: "num", higherBetter: true },
+        { key: "stealsPerGame", label: "SPG", format: "num", higherBetter: true },
+        { key: "blocksPerGame", label: "BPG", format: "num", higherBetter: true },
+        { key: "fieldGoalPct", label: "FG%", format: "pct", higherBetter: true },
+        { key: "threePct", label: "3P%", format: "pct", higherBetter: true },
+        { key: "ftPct", label: "FT%", format: "pct", higherBetter: true }
+      ],
+      advanced: [
+        { key: "usage", label: "Usage%", format: "pct", higherBetter: true },
+        { key: "offensiveRating", label: "OffRtg", format: "num", higherBetter: true },
+        { key: "defensiveRating", label: "DefRtg", format: "num", higherBetter: false },
+        { key: "netRating", label: "NetRtg", format: "num", higherBetter: true },
+        { key: "trueShootingPct", label: "TS%", format: "pct", higherBetter: true },
+        { key: "effectiveFieldGoalPct", label: "eFG%", format: "pct", higherBetter: true },
+        { key: "freeThrowRate", label: "FT Rate", format: "num", higherBetter: true },
+        { key: "offensiveReboundPct", label: "OReb%", format: "pct", higherBetter: true },
+        { key: "assistsTurnoverRatio", label: "AST/TO", format: "num", higherBetter: true },
+        { key: "PORPAG", label: "PORPAG", format: "num", higherBetter: true },
+        { key: "winShares", label: "Win Shares", format: "num", higherBetter: true },
+        { key: "wsPer40", label: "WS/40", format: "num", higherBetter: true }
+      ],
+      shooting: [
+        { key: "fgLine", label: "FG", format: "text", higherBetter: null },
+        { key: "threeLine", label: "3P", format: "text", higherBetter: null },
+        { key: "ftLine", label: "FT", format: "text", higherBetter: null },
+        { key: "dunks", label: "Dunks", format: "text", higherBetter: null },
+        { key: "layups", label: "Layups", format: "text", higherBetter: null },
+        { key: "tipIns", label: "Tip-Ins", format: "text", higherBetter: null },
+        { key: "twoPointJumpers", label: "2P Jumpers", format: "text", higherBetter: null },
+        { key: "threePointJumpers", label: "3P Jumpers", format: "text", higherBetter: null },
+        { key: "assistedPct", label: "Assisted%", format: "pct", higherBetter: true }
+      ]
+    };
+
+    let visibleSlots = 2;
+    let currentTab = "traditional";
+    let slots = Array.from({ length: MAX_SLOTS }, () => ({ season: 2026, athleteId: "" }));
+    let compareState = {
+      seasonStats: new Map(),
+      seasonShooting: new Map(),
+      seasonPools: new Map(),
+      selectedPlayers: []
+    };
+    let modalShotChart = null;
+    let inlineShotCharts = [];
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        shotchart: window.BBNStatsShotChart || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getDefaultSeason() {
+      return 2026;
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function perGame(total, games) {
+      const totalNum = Number(total || 0);
+      const gamesNum = Number(games || 0);
+      return gamesNum ? totalNum / gamesNum : 0;
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function parseUrlState() {
+      const params = new URLSearchParams(window.location.search);
+      const defaultSeason = getDefaultSeason();
+      const nextSlots = Array.from({ length: MAX_SLOTS }, () => ({ season: defaultSeason, athleteId: "" }));
+      let highestUsed = 0;
+
+      SLOT_KEYS.forEach((key, index) => {
+        const raw = params.get(key);
+        if (!raw) return;
+        const [athleteId, seasonText] = raw.split(":");
+        if (!athleteId) return;
+        nextSlots[index] = {
+          season: Number(seasonText || defaultSeason),
+          athleteId
+        };
+        highestUsed = Math.max(highestUsed, index + 1);
+      });
+
+      const singleId = params.get("id");
+      const singleSeason = Number(params.get("season") || defaultSeason);
+      if (singleId && !nextSlots[0].athleteId) {
+        nextSlots[0] = { season: singleSeason, athleteId: singleId };
+      }
+
+      visibleSlots = Math.max(2, Math.min(MAX_SLOTS, Number(params.get("slots") || highestUsed || 2)));
+      slots = nextSlots;
+    }
+
+    function syncUrlState() {
+      const url = new URL(window.location.href);
+      url.search = "";
+      SLOT_KEYS.forEach((key, index) => {
+        if (slots[index].athleteId) {
+          url.searchParams.set(key, `${slots[index].athleteId}:${slots[index].season}`);
+        }
+      });
+      url.searchParams.set("slots", String(visibleSlots));
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    async function loadSeasonPool(season) {
+      if (compareState.seasonStats.has(season)) {
+        return;
+      }
+
+      const [statsResponse, shootingResponse] = await Promise.all([
+        getHelpers().api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
+        getHelpers().api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season })
+      ]);
+
+      const statsRows = safeArray(statsResponse);
+      const shootingRows = safeArray(shootingResponse);
+      compareState.seasonStats.set(season, statsRows);
+      compareState.seasonShooting.set(season, shootingRows);
+      compareState.seasonPools.set(season, {
+        statsRows,
+        shootingRows,
+        playerOptions: statsRows
+          .map((player) => ({
+            athleteId: String(player.athleteId),
+            name: player.name || "Unknown Player",
+            position: player.position || ""
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      });
+    }
+
+    function getSeasonPool(season) {
+      return compareState.seasonPools.get(season) || { statsRows: [], shootingRows: [], playerOptions: [] };
+    }
+
+    function renderSelectorGrid() {
+      const container = document.getElementById("selector-grid");
+      container.innerHTML = Array.from({ length: visibleSlots }, (_, index) => {
+        const slot = slots[index];
+        const pool = getSeasonPool(slot.season);
+        const players = pool.playerOptions || [];
+        const selected = players.find((player) => String(player.athleteId) === String(slot.athleteId));
+
+        return `
+          <article class="card selector-card">
+            <div class="metric-label">Slot ${index + 1}</div>
+            <div class="slot-summary">
+              <div class="card-title">${escapeHtml(selected?.name || "Select a player")}</div>
+              <div class="hero-support">${escapeHtml(selected ? `${selected.position || "Kentucky"} | ${seasonLabel(slot.season)}` : "Choose a season and player")}</div>
+            </div>
+            <div class="selector-card__controls">
+              <label>
+                <span class="metric-label">Season</span>
+                <select class="compare-select" data-slot-season="${index}">
+                  ${COMPARE_SEASON_OPTIONS.map((season) => `<option value="${season}"${season === slot.season ? " selected" : ""}>${season}</option>`).join("")}
+                </select>
+              </label>
+              <label>
+                <span class="metric-label">Player</span>
+                <select class="compare-select" data-slot-player="${index}">
+                  <option value="">Select player</option>
+                  ${players.map((player) => `<option value="${escapeHtml(player.athleteId)}"${String(player.athleteId) === String(slot.athleteId) ? " selected" : ""}>${escapeHtml(player.name)}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div class="selector-card__actions">
+              <button class="btn btn--secondary" type="button" data-add-after="${index}">Add Player</button>
+              <button class="btn btn--ghost" type="button" data-clear-slot="${index}">Clear</button>
+              ${visibleSlots > 2 ? `<button class="btn btn--ghost" type="button" data-remove-slot="${index}">Remove Slot</button>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    async function refreshSelectorPools() {
+      const seasons = Array.from(new Set(slots.slice(0, visibleSlots).map((slot) => slot.season)));
+      await Promise.all(seasons.map((season) => loadSeasonPool(season)));
+      renderSelectorGrid();
+    }
+
+    function formatShotLine(stat) {
+      if (!stat) return "--";
+      return `${stat.made || 0}-${stat.attempted || 0} (${fmtPct(stat.pct)})`;
+    }
+
+    function normalizePlayerName(name) {
+      return String(name || "")
+        .normalize("NFKD")
+        .replace(/[^\w\s.'-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function filterShotAttemptsForPlayer(plays, athleteId, playerName) {
+      const normalizedName = normalizePlayerName(playerName);
+
+      return safeArray(plays).filter((play) => {
+        const shooterId = Number(play?.shotInfo?.shooter?.id);
+        const shooterName = normalizePlayerName(play?.shotInfo?.shooter?.name);
+
+        if (Number.isFinite(shooterId) && Number(athleteId) > 0) {
+          return shooterId === Number(athleteId);
+        }
+
+        return Boolean(normalizedName) && shooterName === normalizedName;
+      });
+    }
+
+    function normalizeComparisonPlayer(slotIndex, statLine, shootingLine, shotPlays) {
+      const games = Number(statLine.games || 0);
+      return {
+        slotIndex,
+        season: slots[slotIndex].season,
+        athleteId: String(statLine.athleteId),
+        name: statLine.name || "Unknown Player",
+        position: statLine.position || "",
+        statLine,
+        shootingLine,
+        shotPlays: safeArray(shotPlays),
+        header: `${statLine.name || "Player"} ${slots[slotIndex].season}`,
+        values: {
+          games,
+          minutesPerGame: perGame(statLine.minutes, games),
+          pointsPerGame: perGame(statLine.points, games),
+          reboundsPerGame: perGame(statLine.rebounds?.total, games),
+          assistsPerGame: perGame(statLine.assists, games),
+          stealsPerGame: perGame(statLine.steals, games),
+          blocksPerGame: perGame(statLine.blocks, games),
+          fieldGoalPct: Number(statLine.fieldGoals?.pct ?? 0),
+          threePct: Number(statLine.threePointFieldGoals?.pct ?? 0),
+          ftPct: Number(statLine.freeThrows?.pct ?? 0),
+          usage: Number(statLine.usage ?? 0),
+          offensiveRating: Number(statLine.offensiveRating ?? 0),
+          defensiveRating: Number(statLine.defensiveRating ?? 0),
+          netRating: Number(statLine.netRating ?? 0),
+          trueShootingPct: Number(statLine.trueShootingPct ?? 0),
+          effectiveFieldGoalPct: Number(statLine.effectiveFieldGoalPct ?? 0),
+          freeThrowRate: Number(statLine.freeThrowRate ?? 0),
+          offensiveReboundPct: Number(statLine.offensiveReboundPct ?? 0),
+          assistsTurnoverRatio: Number(statLine.assistsTurnoverRatio ?? 0),
+          PORPAG: Number(statLine.PORPAG ?? 0),
+          winShares: Number(statLine.winShares?.total ?? 0),
+          wsPer40: Number(statLine.winShares?.totalPer40 ?? 0),
+          fgLine: formatShotLine(statLine.fieldGoals),
+          threeLine: formatShotLine(statLine.threePointFieldGoals),
+          ftLine: formatShotLine(statLine.freeThrows),
+          dunks: formatShotLine(shootingLine?.dunks),
+          layups: formatShotLine(shootingLine?.layups),
+          tipIns: formatShotLine(shootingLine?.tipIns),
+          twoPointJumpers: formatShotLine(shootingLine?.twoPointJumpers),
+          threePointJumpers: formatShotLine(shootingLine?.threePointJumpers),
+          assistedPct: Number(shootingLine?.assistedPct ?? 0)
+        }
+      };
+    }
+
+    async function loadSelectedPlayers() {
+      const activeSlots = slots.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.athleteId);
+
+      if (!activeSlots.length) {
+        compareState.selectedPlayers = [];
+        renderCompareState();
+        return;
+      }
+
+      await Promise.all(Array.from(new Set(activeSlots.map((slot) => slot.season))).map((season) => loadSeasonPool(season)));
+      const players = await Promise.all(activeSlots.map(async (slot) => {
+        const pool = getSeasonPool(slot.season);
+        const statLine = safeArray(pool.statsRows).find((player) => String(player.athleteId) === String(slot.athleteId));
+        const shootingLine = safeArray(pool.shootingRows).find((player) => String(player.athleteId) === String(slot.athleteId)) || null;
+        if (!statLine) return null;
+        let shotPlays = [];
+        try {
+          shotPlays = await getHelpers().api.apiFetch(`/plays/player/${slot.athleteId}`, { season: slot.season, shootingPlaysOnly: true });
+        } catch (error) {
+          shotPlays = [];
+        }
+        return normalizeComparisonPlayer(
+          slot.index,
+          statLine,
+          shootingLine,
+          filterShotAttemptsForPlayer(shotPlays, statLine?.athleteId, statLine?.name)
+        );
+      }));
+
+      compareState.selectedPlayers = players.filter(Boolean);
+      renderCompareState();
+    }
+
+    function formatCell(value, format) {
+      if (format === "pct") return fmtPct(value);
+      if (format === "num") return fmtNum(value, 1);
+      return String(value ?? "--");
+    }
+
+    function renderQuickStats() {
+      const target = document.getElementById("quick-stats-grid");
+      target.innerHTML = compareState.selectedPlayers.map((player, index) => `
+        <article class="card">
+          <div class="metric-label">Player ${index + 1}</div>
+          <div class="card-title">${escapeHtml(player.name)}</div>
+          <div class="hero-support">${escapeHtml(`${seasonLabel(player.season)} | ${player.position || "Kentucky"}`)}</div>
+          <div class="meta-badges">
+            <span class="meta-badge" style="border-color:${SLOT_COLORS[index]}; color:${SLOT_COLORS[index]};">${escapeHtml(fmtNum(player.values.pointsPerGame, 1))} PPG</span>
+            <span class="meta-badge">${escapeHtml(fmtNum(player.values.reboundsPerGame, 1))} RPG</span>
+            <span class="meta-badge">${escapeHtml(fmtNum(player.values.assistsPerGame, 1))} APG</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderComparisonTable() {
+      const players = compareState.selectedPlayers;
+      const columns = TAB_DEFS[currentTab];
+
+      document.getElementById("comparison-head").innerHTML = `
+        <tr>
+          <th>Stat</th>
+          ${players.map((player) => `<th>${escapeHtml(player.header)}</th>`).join("")}
+        </tr>
+      `;
+
+      document.getElementById("comparison-body").innerHTML = columns.map((column) => {
+        const values = players.map((player) => player.values[column.key]);
+        let bestIndex = -1;
+        if (column.higherBetter !== null) {
+          const numericValues = values.map((value) => Number(value));
+          const bestValue = column.higherBetter ? Math.max(...numericValues) : Math.min(...numericValues);
+          bestIndex = numericValues.findIndex((value) => value === bestValue);
+        }
+
+        return `
+          <tr>
+            <td>${escapeHtml(column.label)}</td>
+            ${values.map((value, index) => `<td class="${index === bestIndex ? "is-best" : ""}">${escapeHtml(formatCell(value, column.format))}</td>`).join("")}
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderRadarChart() {
+      const target = document.getElementById("radar-frame");
+      const players = compareState.selectedPlayers;
+      if (!players.length) {
+        target.innerHTML = '<div class="empty-state">Select players to build the radar chart.</div>';
+        return;
+      }
+
+      target.innerHTML = '<canvas id="compare-radar-chart" aria-label="Comparison radar chart"></canvas>';
+      const pool = Array.from(compareState.seasonStats.values()).flat();
+      const getPoolMax = (getter) => Math.max(...pool.map((player) => Number(getter(player) || 0)), 1);
+      const scaleMap = {
+        scoring: getPoolMax((player) => perGame(player.points, player.games)),
+        rebounding: getPoolMax((player) => perGame(player.rebounds?.total, player.games)),
+        playmaking: getPoolMax((player) => perGame(player.assists, player.games)),
+        defense: getPoolMax((player) => perGame(Number(player.steals || 0) + Number(player.blocks || 0), player.games)),
+        efficiency: getPoolMax((player) => Number(player.trueShootingPct || 0)),
+        shooting: getPoolMax((player) => Number(player.threePointFieldGoals?.pct || 0))
+      };
+
+      const labels = ["Scoring", "Rebounding", "Playmaking", "Defense", "Efficiency", "Shooting"];
+      const datasets = players.map((player, index) => ({
+        label: player.header,
+        data: [
+          (player.values.pointsPerGame / scaleMap.scoring) * 100,
+          (player.values.reboundsPerGame / scaleMap.rebounding) * 100,
+          (player.values.assistsPerGame / scaleMap.playmaking) * 100,
+          ((player.values.stealsPerGame + player.values.blocksPerGame) / scaleMap.defense) * 100,
+          (player.values.trueShootingPct / scaleMap.efficiency) * 100,
+          (player.values.threePct / scaleMap.shooting) * 100
+        ],
+        borderColor: SLOT_COLORS[index],
+        backgroundColor: `${SLOT_COLORS[index]}26`,
+        pointBackgroundColor: SLOT_COLORS[index],
+        pointBorderColor: "#FFFFFF",
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        fill: true
+      }));
+
+      getHelpers().charts.radarChart("compare-radar-chart", labels, datasets, {
+        scales: {
+          r: {
+            min: 0,
+            max: 100,
+            ticks: { display: false }
+          }
+        }
+      });
+    }
+
+    function renderBarChart() {
+      const target = document.getElementById("bar-frame");
+      const players = compareState.selectedPlayers;
+      if (!players.length) {
+        target.innerHTML = '<div class="empty-state">Select players to build the bar chart.</div>';
+        return;
+      }
+
+      target.innerHTML = '<canvas id="compare-bar-chart" aria-label="Comparison bar chart"></canvas>';
+      getHelpers().charts.barChart("compare-bar-chart", ["PPG", "RPG", "APG", "TS%"], players.map((player, index) => ({
+        label: player.header,
+        data: [
+          player.values.pointsPerGame,
+          player.values.reboundsPerGame,
+          player.values.assistsPerGame,
+          player.values.trueShootingPct
+        ],
+        backgroundColor: SLOT_COLORS[index],
+        borderColor: SLOT_COLORS[index]
+      })), {
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      });
+    }
+
+    function destroyInlineShotCharts() {
+      inlineShotCharts.forEach((chart) => chart?.destroy?.());
+      inlineShotCharts = [];
+    }
+
+    function openShotModal(player) {
+      const modal = document.getElementById("comparison-modal");
+      document.getElementById("modal-title").textContent = `${player.name} ${player.season} Shot Chart`;
+      if (modalShotChart) {
+        modalShotChart.destroy();
+      }
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      modalShotChart = getHelpers().shotchart.createShotChart(
+        document.getElementById("comparison-modal-canvas"),
+        player.shotPlays,
+        { mode: "dots", filter: "all" }
+      );
+    }
+
+    function renderShotCharts() {
+      const target = document.getElementById("shot-grid");
+      const players = compareState.selectedPlayers;
+      destroyInlineShotCharts();
+
+      if (!players.length) {
+        target.innerHTML = "";
+        return;
+      }
+
+      target.innerHTML = players.map((player, index) => `
+        <article class="card shot-card">
+          <div class="card-title">${escapeHtml(player.name)}</div>
+          <div class="hero-support">${escapeHtml(seasonLabel(player.season))}</div>
+          <canvas id="compare-shot-${index}" width="640" height="580" aria-label="${escapeHtml(player.name)} shot chart"></canvas>
+          <div class="shot-card__meta">
+            <span class="metric-label">${escapeHtml(player.shotPlays.length)} attempts</span>
+            <button class="btn btn--ghost" type="button" data-expand-shot="${index}">Expand</button>
+          </div>
+        </article>
+      `).join("");
+
+      players.forEach((player, index) => {
+        const canvas = document.getElementById(`compare-shot-${index}`);
+        if (!canvas) return;
+        if (!player.shotPlays.length) {
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#0D1426";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#DCEBFF";
+          ctx.font = "600 18px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("No shot data available", canvas.width / 2, canvas.height / 2);
+          return;
+        }
+        inlineShotCharts.push(getHelpers().shotchart.createShotChart(canvas, player.shotPlays, { mode: "dots", filter: "all" }));
+      });
+    }
+
+    function renderCompareState() {
+      const players = compareState.selectedPlayers;
+      const empty = document.getElementById("compare-empty");
+      const content = document.getElementById("compare-content");
+      const status = document.getElementById("compare-status");
+
+      if (!players.length) {
+        empty.hidden = false;
+        content.hidden = true;
+        status.textContent = "No players selected";
+        destroyInlineShotCharts();
+        return;
+      }
+
+      empty.hidden = true;
+      content.hidden = false;
+      status.textContent = `${players.length} player${players.length === 1 ? "" : "s"} loaded`;
+      renderQuickStats();
+      renderComparisonTable();
+      renderRadarChart();
+      renderBarChart();
+      renderShotCharts();
+    }
+
+    async function handleSlotSeasonChange(index, season) {
+      slots[index].season = Number(season);
+      slots[index].athleteId = "";
+      syncUrlState();
+      await refreshSelectorPools();
+      await loadSelectedPlayers();
+    }
+
+    async function handleSlotPlayerChange(index, athleteId) {
+      slots[index].athleteId = athleteId;
+      syncUrlState();
+      await refreshSelectorPools();
+      await loadSelectedPlayers();
+    }
+
+    async function addVisibleSlot() {
+      if (visibleSlots >= MAX_SLOTS) return;
+      visibleSlots += 1;
+      syncUrlState();
+      renderSelectorGrid();
+      await refreshSelectorPools();
+    }
+
+    async function clearSlot(index) {
+      slots[index].athleteId = "";
+      syncUrlState();
+      await refreshSelectorPools();
+      await loadSelectedPlayers();
+    }
+
+    async function removeSlot(index) {
+      if (visibleSlots <= 2) return;
+
+      for (let current = index; current < MAX_SLOTS - 1; current += 1) {
+        slots[current] = { ...slots[current + 1] };
+      }
+
+      slots[MAX_SLOTS - 1] = { season: getDefaultSeason(), athleteId: "" };
+      visibleSlots -= 1;
+      syncUrlState();
+      await refreshSelectorPools();
+      await loadSelectedPlayers();
+    }
+
+    async function copyShareLink() {
+      syncUrlState();
+      const url = window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        document.getElementById("compare-status").textContent = "Share link copied";
+      } catch (error) {
+        document.getElementById("compare-status").textContent = url;
+      }
+    }
+
+    function bindTabs() {
+      document.querySelectorAll("[data-compare-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentTab = button.dataset.compareTab;
+          document.querySelectorAll("[data-compare-tab]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderComparisonTable();
+        });
+      });
+    }
+
+    function bindModal() {
+      document.getElementById("close-modal-btn").addEventListener("click", () => {
+        document.getElementById("comparison-modal").classList.remove("is-open");
+        document.getElementById("comparison-modal").setAttribute("aria-hidden", "true");
+        if (modalShotChart) {
+          modalShotChart.destroy();
+          modalShotChart = null;
+        }
+      });
+
+      document.getElementById("comparison-modal").addEventListener("click", (event) => {
+        if (event.target.id === "comparison-modal") {
+          document.getElementById("close-modal-btn").click();
+        }
+      });
+    }
+
+    function bindStaticActions() {
+      document.getElementById("add-slot-btn").addEventListener("click", async () => {
+        await addVisibleSlot();
+      });
+      document.getElementById("copy-link-btn").addEventListener("click", copyShareLink);
+    }
+
+    function bindDynamicActions() {
+      document.body.addEventListener("change", async (event) => {
+        const seasonSelect = event.target.closest("[data-slot-season]");
+        if (seasonSelect) {
+          await handleSlotSeasonChange(Number(seasonSelect.dataset.slotSeason), seasonSelect.value);
+          return;
+        }
+
+        const playerSelect = event.target.closest("[data-slot-player]");
+        if (playerSelect) {
+          await handleSlotPlayerChange(Number(playerSelect.dataset.slotPlayer), playerSelect.value);
+        }
+      });
+
+      document.body.addEventListener("click", async (event) => {
+        const addButton = event.target.closest("[data-add-after]");
+        if (addButton) {
+          await addVisibleSlot();
+          return;
+        }
+
+        const clearButton = event.target.closest("[data-clear-slot]");
+        if (clearButton) {
+          await clearSlot(Number(clearButton.dataset.clearSlot));
+          return;
+        }
+
+        const removeButton = event.target.closest("[data-remove-slot]");
+        if (removeButton) {
+          await removeSlot(Number(removeButton.dataset.removeSlot));
+          return;
+        }
+
+        const expandButton = event.target.closest("[data-expand-shot]");
+        if (expandButton) {
+          const player = compareState.selectedPlayers[Number(expandButton.dataset.expandShot)];
+          if (player) openShotModal(player);
+          return;
+        }
+
+        const shotCanvas = event.target.closest("[id^='compare-shot-']");
+        if (shotCanvas) {
+          const index = Number(shotCanvas.id.replace("compare-shot-", ""));
+          const player = compareState.selectedPlayers[index];
+          if (player) openShotModal(player);
+        }
+      });
+    }
+
+    async function loadComparePage() {
+      parseUrlState();
+      bindStaticActions();
+      bindDynamicActions();
+      bindTabs();
+      bindModal();
+      getHelpers().printer.bindExportButtons?.({ pageName: "compare", elementId: "main-content" });
+      await refreshSelectorPools();
+      await loadSelectedPlayers();
+    }
+
+    document.addEventListener("DOMContentLoaded", loadComparePage);
+  </script>
+</body>
+</html>

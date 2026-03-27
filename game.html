@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Game Box Score</title>
+  <meta name="description" content="Kentucky game box score with team stats, player stats, shot chart, lineups, win probability, and play-by-play.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .game-header-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      gap: 24px;
+      align-items: end;
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: center;
+      text-align: center;
+    }
+
+    .scoreboard__team {
+      display: grid;
+      gap: 8px;
+    }
+
+    .scoreboard__name {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 3vw, 2.4rem);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .scoreboard__score {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      line-height: 0.9;
+    }
+
+    .scoreboard__center {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+    }
+
+    .period-table td,
+    .period-table th {
+      text-align: center;
+    }
+
+    .comparison-table td:first-child,
+    .comparison-table th:first-child {
+      min-width: 180px;
+      text-align: left;
+    }
+
+    .comparison-good {
+      color: #eaf4ff;
+      font-weight: 700;
+      border-color: rgba(74, 144, 217, 0.42);
+      background:
+        linear-gradient(135deg, rgba(74, 144, 217, 0.3), rgba(0, 51, 160, 0.16)),
+        rgba(255, 255, 255, 0.03);
+      box-shadow:
+        inset 0 0 0 1px rgba(74, 144, 217, 0.32),
+        inset 0 10px 18px rgba(74, 144, 217, 0.08);
+      text-shadow: 0 0 14px rgba(92, 200, 255, 0.2);
+    }
+
+    .comparison-table td.comparison-good {
+      border-radius: 12px;
+    }
+
+    .box-toggle-row,
+    .play-filter-row,
+    .shot-toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .box-score-grid,
+    .game-bottom-grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .box-score-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .game-bottom-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+    }
+
+    .pbp-list {
+      display: grid;
+      gap: 16px;
+      max-height: 820px;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    .play-filter-controls {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .player-filter-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .player-filter-wrap label {
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .player-filter-select {
+      min-width: 240px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(74, 144, 217, 0.24);
+      background: rgba(13, 31, 58, 0.92);
+      color: var(--text-primary);
+      font: inherit;
+    }
+
+    .pbp-period {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pbp-period__title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .pbp-item {
+      display: grid;
+      grid-template-columns: 84px 90px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .pbp-item--scoring {
+      border-color: rgba(39, 174, 96, 0.2);
+      background: rgba(39, 174, 96, 0.08);
+    }
+
+    .pbp-item--turnover {
+      border-color: rgba(231, 76, 60, 0.2);
+      background: rgba(231, 76, 60, 0.08);
+    }
+
+    .pbp-item--foul {
+      border-color: rgba(241, 196, 15, 0.2);
+      background: rgba(241, 196, 15, 0.08);
+    }
+
+    .lineup-players {
+      max-width: 320px;
+      white-space: normal;
+    }
+
+    .shotchart-panel .shot-chart__surface {
+      margin-bottom: 14px;
+    }
+
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .meta-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .meta-badge--gold {
+      border-color: rgba(241, 196, 15, 0.28);
+      background: rgba(241, 196, 15, 0.12);
+      color: #ffe27c;
+    }
+
+    .meta-badge--green {
+      border-color: rgba(39, 174, 96, 0.24);
+      background: rgba(39, 174, 96, 0.12);
+      color: #7ee2a8;
+    }
+
+    .meta-badge--red {
+      border-color: rgba(231, 76, 60, 0.24);
+      background: rgba(231, 76, 60, 0.12);
+      color: #ff9188;
+    }
+
+    @media (max-width: 1100px) {
+      .game-header-grid,
+      .box-score-grid,
+      .game-bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .scoreboard,
+      .pbp-item {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="game">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="game-header" class="hero-banner">
+        <div class="game-header-grid">
+          <div class="stack stack--lg">
+            <div class="skeleton skeleton--title"></div>
+            <div class="skeleton skeleton--text"></div>
+            <div class="skeleton skeleton--text"></div>
+          </div>
+          <div class="card">
+            <div class="skeleton skeleton--stat"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Period Scores</h2>
+          <p class="section-copy">Team-by-team scoreboard across halves and overtime.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table period-table">
+            <thead id="period-head"></thead>
+            <tbody id="period-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Team Stats Comparison</h2>
+          <p class="section-copy">Traditional and advanced team stats for Kentucky and the opponent, highlighted where Kentucky led.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table comparison-table">
+            <thead>
+              <tr>
+                <th>Stat</th>
+                <th id="comparison-team-label">Kentucky</th>
+                <th id="comparison-opp-label">Opponent</th>
+              </tr>
+            </thead>
+            <tbody id="comparison-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Player Box Scores</h2>
+          <p class="section-copy">Sortable traditional and advanced box-score tables for both teams.</p>
+        </div>
+      </div>
+      <div class="box-toggle-row">
+        <button class="btn btn--secondary is-active" type="button" data-player-mode="traditional">Traditional</button>
+        <button class="btn btn--ghost" type="button" data-player-mode="advanced">Advanced</button>
+      </div>
+      <div class="box-score-grid">
+        <div class="table-shell">
+          <div class="table-toolbar">
+            <div class="section-title">Kentucky</div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table sortable-table" id="uk-box-table">
+              <thead id="uk-box-head"></thead>
+              <tbody id="uk-box-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-shell">
+          <div class="table-toolbar">
+            <div class="section-title" id="opp-box-title">Opponent</div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table sortable-table" id="opp-box-table">
+              <thead id="opp-box-head"></thead>
+              <tbody id="opp-box-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section game-bottom-grid">
+      <div class="chart-shell shotchart-panel">
+        <div class="chart-header">
+          <div>
+            <h2 class="chart-title">Shot Chart</h2>
+            <p class="chart-copy">Switch between Kentucky and opponent shots, with zone, dot, and heatmap views.</p>
+          </div>
+        </div>
+        <div class="shot-toggle-row">
+          <button class="btn btn--secondary is-active" type="button" data-shot-team="kentucky">Kentucky</button>
+          <button class="btn btn--ghost" type="button" data-shot-team="opponent">Opponent</button>
+          <button class="btn btn--ghost" type="button" data-shot-mode="zone">Zone Chart</button>
+          <button class="btn btn--secondary is-active" type="button" data-shot-mode="dots">Shot Dots</button>
+          <button class="btn btn--ghost" type="button" data-shot-mode="heatmap">Heatmap</button>
+        </div>
+        <div class="shot-chart">
+          <div class="shot-chart__surface">
+            <canvas id="game-shot-chart" width="640" height="580" aria-label="Game shot chart"></canvas>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Zone</th>
+                <th>Made</th>
+                <th>Att</th>
+                <th>Pct</th>
+              </tr>
+            </thead>
+            <tbody id="game-shot-zone-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stack stack--lg">
+        <div class="chart-shell">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">Lineups</h2>
+              <p class="chart-copy">Five-man lineup units sorted by minutes played and efficiency.</p>
+            </div>
+          </div>
+          <div class="box-toggle-row">
+            <button class="btn btn--secondary is-active" type="button" data-lineup-team="kentucky">Kentucky</button>
+            <button class="btn btn--ghost" type="button" data-lineup-team="opponent">Opponent</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table sortable-table" id="lineup-table">
+              <thead id="lineup-head"></thead>
+              <tbody id="lineup-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="chart-shell">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">Win Probability</h2>
+              <p class="chart-copy">Kentucky's win probability over the course of the game, based on play-by-play updates.</p>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-frame">
+              <canvas id="win-probability-chart" aria-label="Win probability chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Play-By-Play</h2>
+          <p class="section-copy">Grouped by period with filters for scoring, shots, fouls, and turnovers.</p>
+        </div>
+      </div>
+      <div class="play-filter-controls">
+        <div class="play-filter-row">
+          <button class="btn btn--secondary is-active" type="button" data-play-filter="all">All</button>
+          <button class="btn btn--ghost" type="button" data-play-filter="scoring">Scoring</button>
+          <button class="btn btn--ghost" type="button" data-play-filter="shots">Shots</button>
+          <button class="btn btn--ghost" type="button" data-play-filter="fouls">Fouls</button>
+          <button class="btn btn--ghost" type="button" data-play-filter="turnovers">Turnovers</button>
+        </div>
+        <div class="player-filter-wrap">
+          <label for="pbp-player-filter">Player</label>
+          <select id="pbp-player-filter" class="player-filter-select">
+            <option value="all">All Players</option>
+          </select>
+        </div>
+      </div>
+      <div id="pbp-list" class="pbp-list"></div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/shotchart.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    let currentPlayerMode = "traditional";
+    let currentPlayFilter = "all";
+    let currentPlayPlayer = "all";
+    let currentShotMode = "dots";
+    let currentShotTeam = "kentucky";
+    let currentLineupTeam = "kentucky";
+    let shotChartController = null;
+    let playerSorts = {
+      uk: { key: "minutes", asc: false },
+      opp: { key: "minutes", asc: false }
+    };
+    let lineupSort = { key: "minutes", asc: false };
+    let gameState = {
+      game: null,
+      teamStats: null,
+      ukPlayers: [],
+      oppPlayers: [],
+      plays: [],
+      shootingPlays: [],
+      lineups: [],
+      line: null,
+      opponentName: "Opponent"
+    };
+
+    const PLAYER_COLUMNS = {
+      traditional: [
+        { key: "starter", label: "GS" },
+        { key: "name", label: "Player" },
+        { key: "minutes", label: "MIN" },
+        { key: "points", label: "PTS" },
+        { key: "offensiveRebounds", label: "OREB" },
+        { key: "defensiveRebounds", label: "DREB" },
+        { key: "rebounds", label: "TREB" },
+        { key: "assists", label: "AST" },
+        { key: "steals", label: "STL" },
+        { key: "blocks", label: "BLK" },
+        { key: "turnovers", label: "TO" },
+        { key: "fouls", label: "PF" },
+        { key: "fieldGoals", label: "FG" },
+        { key: "fieldGoalsPct", label: "FG%" },
+        { key: "twoPointFieldGoals", label: "2P" },
+        { key: "twoPointFieldGoalsPct", label: "2P%" },
+        { key: "threePointFieldGoals", label: "3P" },
+        { key: "threePointFieldGoalsPct", label: "3P%" },
+        { key: "freeThrows", label: "FT" },
+        { key: "freeThrowsPct", label: "FT%" }
+      ],
+      advanced: [
+        { key: "starter", label: "GS" },
+        { key: "name", label: "Player" },
+        { key: "minutes", label: "MIN" },
+        { key: "effectiveFieldGoalPct", label: "eFG%" },
+        { key: "trueShootingPct", label: "TS%" },
+        { key: "offensiveRating", label: "OffRtg" },
+        { key: "defensiveRating", label: "DefRtg" },
+        { key: "netRating", label: "NetRtg" },
+        { key: "usage", label: "Usage%" },
+        { key: "gameScore", label: "GameScore" },
+        { key: "offensiveReboundPct", label: "OReb%" },
+        { key: "freeThrowRate", label: "FT Rate" },
+        { key: "assistsTurnoverRatio", label: "AST/TO" }
+      ]
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        shotchart: window.BBNStatsShotChart || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getQueryParam(name) {
+      return new URLSearchParams(window.location.search).get(name);
+    }
+
+    function getSeason() {
+      const querySeason = Number(getQueryParam("season"));
+      if (Number.isFinite(querySeason) && querySeason > 0) return querySeason;
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function getGameId() {
+      return Number(getQueryParam("id"));
+    }
+
+    function isNumeric(value) {
+      return typeof value === "number" && Number.isFinite(value);
+    }
+
+    function getDateValue(game) {
+      return game?.startDate || game?.date || game?.gameDate || null;
+    }
+
+    function getOpponentName(game) {
+      if (!game) return "Opponent";
+      if (String(game?.homeTeam || "").toLowerCase().includes("kentucky")) return game?.awayTeam || game?.opponent || "Opponent";
+      if (String(game?.awayTeam || "").toLowerCase().includes("kentucky")) return game?.homeTeam || game?.opponent || "Opponent";
+      return game?.opponent || game?.awayTeam || game?.homeTeam || "Opponent";
+    }
+
+    function getKentuckyHome(game) {
+      return String(game?.homeTeam || "").toLowerCase().includes("kentucky");
+    }
+
+    function getKentuckyScore(game) {
+      if (!game) return null;
+      if (isNumeric(game?.teamScore)) return Number(game.teamScore);
+      if (getKentuckyHome(game) && isNumeric(game?.homePoints)) return Number(game.homePoints);
+      if (!getKentuckyHome(game) && isNumeric(game?.awayPoints)) return Number(game.awayPoints);
+      if (getKentuckyHome(game) && isNumeric(game?.homeScore)) return Number(game.homeScore);
+      if (!getKentuckyHome(game) && isNumeric(game?.awayScore)) return Number(game.awayScore);
+      return null;
+    }
+
+    function getOpponentScore(game) {
+      if (!game) return null;
+      if (isNumeric(game?.opponentScore)) return Number(game.opponentScore);
+      if (getKentuckyHome(game) && isNumeric(game?.awayPoints)) return Number(game.awayPoints);
+      if (!getKentuckyHome(game) && isNumeric(game?.homePoints)) return Number(game.homePoints);
+      if (getKentuckyHome(game) && isNumeric(game?.awayScore)) return Number(game.awayScore);
+      if (!getKentuckyHome(game) && isNumeric(game?.homeScore)) return Number(game.homeScore);
+      return null;
+    }
+
+    function getLineSource(line) {
+      if (!line) return null;
+      return Array.isArray(line.lines) ? line.lines[0] || null : line;
+    }
+
+    function normalizeSpreadValue(line) {
+      const source = getLineSource(line);
+      const candidates = [source?.spread, source?.line, source?.spreadValue, source?.favoriteSpread, source?.homeSpread, source?.awaySpread, source?.spreadOpen];
+      for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) return numeric;
+      }
+      return null;
+    }
+
+    function normalizeTotalValue(line) {
+      const source = getLineSource(line);
+      const candidates = [source?.overUnder, source?.total, source?.projectedTotal, source?.overUnderOpen];
+      for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) return numeric;
+      }
+      return null;
+    }
+
+    function buildLinesMap(lines) {
+      const map = new Map();
+      safeArray(lines).forEach((line) => {
+        const keys = [
+          line?.gameId,
+          line?.id,
+          `${line?.homeTeam || ""}|${line?.awayTeam || ""}|${line?.startDate || line?.date || ""}`,
+          `${line?.awayTeam || ""}|${line?.homeTeam || ""}|${line?.startDate || line?.date || ""}`
+        ].filter(Boolean);
+        keys.forEach((key) => map.set(String(key), line));
+      });
+      return map;
+    }
+
+    function getLineForGame(game, linesMap) {
+      const keys = [
+        game?.id,
+        `${game?.homeTeam || ""}|${game?.awayTeam || ""}|${getDateValue(game) || ""}`,
+        `${game?.awayTeam || ""}|${game?.homeTeam || ""}|${getDateValue(game) || ""}`
+      ].filter(Boolean);
+      for (const key of keys) {
+        const found = linesMap.get(String(key));
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function makeShootingLine(stat) {
+      if (!stat) return "--";
+      return `${stat.made || 0}-${stat.attempted || 0} (${fmtPct(stat.pct)})`;
+    }
+
+    function minutesLabel(minutes) {
+      if (!Number.isFinite(Number(minutes))) return "--";
+      const total = Number(minutes);
+      const whole = Math.floor(total);
+      const seconds = Math.round((total - whole) * 60);
+      return `${whole}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function createBadge(label, tone = "") {
+      return `<span class="meta-badge${tone ? ` meta-badge--${tone}` : ""}">${escapeHtml(label)}</span>`;
+    }
+
+    function renderHeader() {
+      const game = gameState.game;
+      const opponent = gameState.opponentName;
+      const kentuckyScore = getKentuckyScore(game);
+      const opponentScore = getOpponentScore(game);
+      const didWin = isNumeric(kentuckyScore) && isNumeric(opponentScore) ? kentuckyScore > opponentScore : null;
+      const spread = normalizeSpreadValue(gameState.line);
+      const total = normalizeTotalValue(gameState.line);
+
+      document.getElementById("game-header").innerHTML = `
+        <div class="game-header-grid">
+          <div class="stack stack--lg">
+            <div>
+              <span class="eyebrow">Game Box Score</span>
+              <h1 class="hero-title">${escapeHtml(getHelpers().utils.formatDate(getDateValue(game)))} vs ${escapeHtml(opponent)}</h1>
+            </div>
+            <div class="scoreboard">
+              <div class="scoreboard__team">
+                <div class="scoreboard__name">Kentucky</div>
+                <div class="scoreboard__score">${escapeHtml(isNumeric(kentuckyScore) ? kentuckyScore : "--")}</div>
+              </div>
+              <div class="scoreboard__center">
+                <div>${createBadge(didWin === null ? (game?.status || "Scheduled") : didWin ? "Win" : "Loss", didWin === null ? "" : didWin ? "green" : "red")}</div>
+                <div class="meta-badges">
+                  ${game?.tournament ? createBadge(game.tournament, "gold") : ""}
+                  ${game?.neutralSite ? createBadge("Neutral Site") : ""}
+                </div>
+              </div>
+              <div class="scoreboard__team">
+                <div class="scoreboard__name">${escapeHtml(opponent)}</div>
+                <div class="scoreboard__score">${escapeHtml(isNumeric(opponentScore) ? opponentScore : "--")}</div>
+              </div>
+            </div>
+            <div class="meta-badges">
+              ${createBadge(game?.venue || "Venue TBD")}
+              ${game?.attendance ? createBadge(`Attendance ${Number(game.attendance).toLocaleString("en-US")}`) : ""}
+              ${Number.isFinite(spread) ? createBadge(`Spread ${spread}`) : ""}
+              ${Number.isFinite(total) ? createBadge(`O/U ${total}`) : ""}
+            </div>
+          </div>
+          <div class="card">
+            <div class="metric-label">Game Context</div>
+            <div class="stack">
+              <div>${escapeHtml(game?.status || "--")}</div>
+              <div>${escapeHtml(game?.city ? `${game.city}, ${game.state || ""}` : game?.notes || "Kentucky game")}</div>
+              <div>${escapeHtml(getKentuckyHome(game) ? "Kentucky home game" : "Kentucky away game")}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPeriodScores() {
+      const game = gameState.game;
+      const homePeriods = safeArray(game?.homePeriodPoints);
+      const awayPeriods = safeArray(game?.awayPeriodPoints);
+      const periodCount = Math.max(homePeriods.length, awayPeriods.length);
+      const labels = Array.from({ length: periodCount }, (_, index) => index === 0 ? "H1" : index === 1 ? "H2" : `OT${index - 1}`);
+
+      document.getElementById("period-head").innerHTML = `
+        <tr>
+          <th>Team</th>
+          ${labels.map((label) => `<th>${escapeHtml(label)}</th>`).join("")}
+          <th>F</th>
+        </tr>
+      `;
+
+      document.getElementById("period-body").innerHTML = `
+        <tr>
+          <td>${escapeHtml(game?.homeTeam || "Home")}</td>
+          ${homePeriods.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}
+          <td>${escapeHtml(game?.homePoints ?? game?.homeScore ?? "--")}</td>
+        </tr>
+        <tr>
+          <td>${escapeHtml(game?.awayTeam || "Away")}</td>
+          ${awayPeriods.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}
+          <td>${escapeHtml(game?.awayPoints ?? game?.awayScore ?? "--")}</td>
+        </tr>
+      `;
+    }
+
+    function renderTeamComparison() {
+      const row = gameState.teamStats;
+      const team = row?.teamStats || {};
+      const opp = row?.opponentStats || {};
+      const shootingPct = (stat) => Number(stat?.pct ?? 0);
+      const rows = [
+        ["Points", team?.points?.total, opp?.points?.total, true],
+        ["FG", makeShootingLine(team.fieldGoals), makeShootingLine(opp.fieldGoals), shootingPct(team.fieldGoals), shootingPct(opp.fieldGoals), true],
+        ["2P", makeShootingLine(team.twoPointFieldGoals), makeShootingLine(opp.twoPointFieldGoals), shootingPct(team.twoPointFieldGoals), shootingPct(opp.twoPointFieldGoals), true],
+        ["3P", makeShootingLine(team.threePointFieldGoals), makeShootingLine(opp.threePointFieldGoals), shootingPct(team.threePointFieldGoals), shootingPct(opp.threePointFieldGoals), true],
+        ["FT", makeShootingLine(team.freeThrows), makeShootingLine(opp.freeThrows), shootingPct(team.freeThrows), shootingPct(opp.freeThrows), true],
+        ["Offensive Rebounds", team?.rebounds?.offensive, opp?.rebounds?.offensive, Number(team?.rebounds?.offensive || 0), Number(opp?.rebounds?.offensive || 0), true],
+        ["Defensive Rebounds", team?.rebounds?.defensive, opp?.rebounds?.defensive, Number(team?.rebounds?.defensive || 0), Number(opp?.rebounds?.defensive || 0), true],
+        ["Total Rebounds", team?.rebounds?.total, opp?.rebounds?.total, Number(team?.rebounds?.total || 0), Number(opp?.rebounds?.total || 0), true],
+        ["Assists", team?.assists, opp?.assists, true],
+        ["Turnovers", team?.turnovers?.total, opp?.turnovers?.total, false],
+        ["Steals", team?.steals, opp?.steals, true],
+        ["Blocks", team?.blocks, opp?.blocks, true],
+        ["Fouls", team?.fouls?.total, opp?.fouls?.total, false],
+        ["Points in Paint", team?.points?.inPaint, opp?.points?.inPaint, true],
+        ["Fast Break Points", team?.points?.fastBreak, opp?.points?.fastBreak, true],
+        ["Points Off TO", team?.points?.offTurnovers, opp?.points?.offTurnovers, true],
+        ["Possessions", team?.possessions, opp?.possessions, null],
+        ["Rating", team?.rating, opp?.rating, true],
+        ["True Shooting", fmtPct(team?.trueShooting), fmtPct(opp?.trueShooting), null],
+        ["eFG%", fmtPct(team?.fourFactors?.effectiveFieldGoalPct), fmtPct(opp?.fourFactors?.effectiveFieldGoalPct), null],
+        ["TOV%", fmtPct(team?.fourFactors?.turnoverRatio), fmtPct(opp?.fourFactors?.turnoverRatio), false],
+        ["OReb%", fmtPct(team?.fourFactors?.offensiveReboundPct), fmtPct(opp?.fourFactors?.offensiveReboundPct), true],
+        ["FT Rate", fmtNum(team?.fourFactors?.freeThrowRate, 2), fmtNum(opp?.fourFactors?.freeThrowRate, 2), true],
+        ["Game Score", fmtNum(team?.gameScore, 1), fmtNum(opp?.gameScore, 1), true]
+      ];
+
+      document.getElementById("comparison-team-label").textContent = "Kentucky";
+      document.getElementById("comparison-opp-label").textContent = gameState.opponentName;
+      document.getElementById("comparison-body").innerHTML = rows.map((rowData) => {
+        const [label, left, right, maybeLeftCompare, maybeRightCompare, maybeHigherBetter] = rowData;
+        const higherBetter = typeof maybeHigherBetter === "boolean" ? maybeHigherBetter : maybeLeftCompare;
+        const leftNum = typeof maybeHigherBetter === "boolean" ? Number(maybeLeftCompare) : Number(left);
+        const rightNum = typeof maybeHigherBetter === "boolean" ? Number(maybeRightCompare) : Number(right);
+        const leftWins = higherBetter === null ? false : Number.isFinite(leftNum) && Number.isFinite(rightNum) && (higherBetter ? leftNum > rightNum : leftNum < rightNum);
+        const rightWins = higherBetter === null ? false : Number.isFinite(leftNum) && Number.isFinite(rightNum) && (higherBetter ? rightNum > leftNum : rightNum < leftNum);
+        return `
+          <tr>
+            <td>${escapeHtml(label)}</td>
+            <td class="${leftWins ? "comparison-good" : ""}">${escapeHtml(left)}</td>
+            <td class="${rightWins ? "comparison-good" : ""}">${escapeHtml(right)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function comparableValue(player, key) {
+      switch (key) {
+        case "name": return player.name || "";
+        case "starter": return player.starter ? 1 : 0;
+        case "offensiveRebounds": return Number(player.rebounds?.offensive || 0);
+        case "defensiveRebounds": return Number(player.rebounds?.defensive || 0);
+        case "minutes":
+        case "points":
+        case "assists":
+        case "steals":
+        case "blocks":
+        case "turnovers":
+        case "fouls":
+        case "usage":
+        case "gameScore":
+        case "offensiveRating":
+        case "defensiveRating":
+        case "netRating":
+        case "offensiveReboundPct":
+        case "freeThrowRate":
+        case "assistsTurnoverRatio":
+        case "effectiveFieldGoalPct":
+        case "trueShootingPct":
+        case "fieldGoalsPct":
+        case "twoPointFieldGoalsPct":
+        case "threePointFieldGoalsPct":
+        case "freeThrowsPct":
+          return Number(player[key] || 0);
+        case "rebounds":
+          return Number(player.rebounds?.total || 0);
+        default:
+          if (typeof player[key] === "object") return Number(player[key]?.made || 0);
+          return Number(player[key] || 0);
+      }
+    }
+
+    function formatPlayerCell(player, key) {
+      switch (key) {
+        case "starter": return player.starter ? "Y" : "N";
+        case "name": return player.athleteId ? `<a href="player.html?id=${encodeURIComponent(player.athleteId)}&season=${encodeURIComponent(getSeason())}">${escapeHtml(player.name)}</a>` : escapeHtml(player.name);
+        case "minutes": return escapeHtml(minutesLabel(player.minutes));
+        case "offensiveRebounds": return escapeHtml(player.rebounds?.offensive || 0);
+        case "defensiveRebounds": return escapeHtml(player.rebounds?.defensive || 0);
+        case "rebounds": return escapeHtml(player.rebounds?.total || 0);
+        case "fieldGoals":
+        case "twoPointFieldGoals":
+        case "threePointFieldGoals":
+        case "freeThrows":
+          return escapeHtml(`${player[key]?.made || 0}-${player[key]?.attempted || 0}`);
+        case "fieldGoalsPct": return escapeHtml(fmtPct(player.fieldGoals?.pct));
+        case "twoPointFieldGoalsPct": return escapeHtml(fmtPct(player.twoPointFieldGoals?.pct));
+        case "threePointFieldGoalsPct": return escapeHtml(fmtPct(player.threePointFieldGoals?.pct));
+        case "freeThrowsPct": return escapeHtml(fmtPct(player.freeThrows?.pct));
+        case "effectiveFieldGoalPct":
+        case "trueShootingPct":
+        case "offensiveReboundPct":
+        case "usage":
+          return escapeHtml(fmtPct(player[key]));
+        case "freeThrowRate":
+        case "assistsTurnoverRatio":
+        case "gameScore":
+        case "offensiveRating":
+        case "defensiveRating":
+        case "netRating":
+          return escapeHtml(fmtNum(player[key], 1));
+        default:
+          return escapeHtml(player[key] ?? "--");
+      }
+    }
+
+    function renderPlayerTable(teamKey) {
+      const isUk = teamKey === "uk";
+      const rows = (isUk ? gameState.ukPlayers : gameState.oppPlayers).slice().sort((a, b) => {
+        const sort = playerSorts[teamKey];
+        const left = comparableValue(a, sort.key);
+        const right = comparableValue(b, sort.key);
+        if (typeof left === "string") return sort.asc ? left.localeCompare(right) : right.localeCompare(left);
+        return sort.asc ? left - right : right - left;
+      });
+      const columns = PLAYER_COLUMNS[currentPlayerMode];
+      const headId = isUk ? "uk-box-head" : "opp-box-head";
+      const bodyId = isUk ? "uk-box-body" : "opp-box-body";
+      const sort = playerSorts[teamKey];
+
+      document.getElementById(headId).innerHTML = `<tr>${columns.map((column) => {
+        const arrow = sort.key === column.key ? (sort.asc ? " ▲" : " ▼") : "";
+        return `<th data-player-table="${teamKey}" data-sort-key="${column.key}">${escapeHtml(column.label + arrow)}</th>`;
+      }).join("")}</tr>`;
+      document.getElementById(bodyId).innerHTML = rows.map((player) => `
+        <tr>
+          ${columns.map((column) => `<td>${formatPlayerCell(player, column.key)}</td>`).join("")}
+        </tr>
+      `).join("");
+    }
+
+    function renderShotZoneTable(summary) {
+      const order = ["restricted", "shortMidL", "shortMidR", "shortMidCenter", "midL", "midR", "midCenter", "corner3L", "corner3R", "wing3L", "wing3R", "center3"];
+      document.getElementById("game-shot-zone-body").innerHTML = order
+        .map((key) => summary?.[key])
+        .filter(Boolean)
+        .map((zone) => `
+          <tr>
+            <td>${escapeHtml(zone.label)}</td>
+            <td>${escapeHtml(zone.made)}</td>
+            <td>${escapeHtml(zone.attempted)}</td>
+            <td>${escapeHtml((zone.pct * 100).toFixed(1))}%</td>
+          </tr>
+        `).join("");
+    }
+
+    function renderShotChart() {
+      const filtered = safeArray(gameState.shootingPlays).filter((play) => {
+        const playTeam = String(play?.team || "").toLowerCase();
+        return currentShotTeam === "kentucky"
+          ? playTeam.includes("kentucky")
+          : !playTeam.includes("kentucky");
+      });
+
+      if (shotChartController) {
+        shotChartController.destroy();
+      }
+
+      shotChartController = getHelpers().shotchart.createShotChart(
+        document.getElementById("game-shot-chart"),
+        filtered,
+        { mode: currentShotMode, filter: "all" }
+      );
+      renderShotZoneTable(shotChartController.getZoneSummary());
+    }
+
+    function normalizeLineupRow(lineup) {
+      return {
+        team: lineup.team,
+        players: safeArray(lineup.athletes).map((athlete) => athlete.name).join(", "),
+        minutes: Number(lineup.totalSeconds || 0) / 60,
+        pace: Number(lineup.pace || 0),
+        offensiveRating: Number(lineup.offenseRating || lineup.offensiveRating || 0),
+        defensiveRating: Number(lineup.defenseRating || 0),
+        netRating: Number(lineup.netRating || 0),
+        effectiveFieldGoalPct: Number(lineup.teamStats?.fourFactors?.effectiveFieldGoalPct || 0),
+        turnoverRatio: Number(lineup.teamStats?.fourFactors?.turnoverRatio || 0),
+        offensiveReboundPct: Number(lineup.teamStats?.fourFactors?.offensiveReboundPct || 0)
+      };
+    }
+
+    function renderLineups() {
+      const rows = safeArray(gameState.lineups)
+        .filter((lineup) => currentLineupTeam === "kentucky"
+          ? String(lineup?.team || "").toLowerCase().includes("kentucky")
+          : String(lineup?.team || "").toLowerCase().includes(String(gameState.opponentName || "").toLowerCase()))
+        .map(normalizeLineupRow)
+        .sort((a, b) => {
+          const left = lineupSort.key === "players" ? String(a.players || "") : Number(a[lineupSort.key] || 0);
+          const right = lineupSort.key === "players" ? String(b.players || "") : Number(b[lineupSort.key] || 0);
+          if (lineupSort.key === "players") {
+            return lineupSort.asc ? left.localeCompare(right) : right.localeCompare(left);
+          }
+          return lineupSort.asc ? left - right : right - left;
+        });
+
+      document.getElementById("lineup-head").innerHTML = `
+        <tr>
+          <th data-lineup-sort="players">Players${lineupSort.key === "players" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="minutes">MIN${lineupSort.key === "minutes" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="offensiveRating">OffRtg${lineupSort.key === "offensiveRating" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="defensiveRating">DefRtg${lineupSort.key === "defensiveRating" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="netRating">NetRtg${lineupSort.key === "netRating" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="effectiveFieldGoalPct">eFG%${lineupSort.key === "effectiveFieldGoalPct" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="turnoverRatio">TOV%${lineupSort.key === "turnoverRatio" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+          <th data-lineup-sort="offensiveReboundPct">OReb%${lineupSort.key === "offensiveReboundPct" ? (lineupSort.asc ? " ▲" : " ▼") : ""}</th>
+        </tr>
+      `;
+
+      document.getElementById("lineup-body").innerHTML = rows.map((row) => `
+        <tr>
+          <td class="lineup-players">${escapeHtml(row.players)}</td>
+          <td>${escapeHtml(fmtNum(row.minutes, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.offensiveRating, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.defensiveRating, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.netRating, 1))}</td>
+          <td>${escapeHtml(fmtPct(row.effectiveFieldGoalPct))}</td>
+          <td>${escapeHtml(fmtPct(row.turnoverRatio))}</td>
+          <td>${escapeHtml(fmtPct(row.offensiveReboundPct))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderWinProbability() {
+      const plays = safeArray(gameState.plays).filter((play) => isNumeric(play?.homeWinProbability));
+      if (!plays.length) {
+        document.getElementById("win-probability-chart").closest(".chart-shell").querySelector(".chart-frame").innerHTML = '<div class="empty-state">No win-probability data available for this game.</div>';
+        return;
+      }
+
+      const kentuckyHome = getKentuckyHome(gameState.game);
+      const labels = plays.map((play, index) => play.clock ? `${play.clock}` : `Play ${index + 1}`);
+      const data = plays.map((play) => kentuckyHome ? Number(play.homeWinProbability) * 100 : (1 - Number(play.homeWinProbability)) * 100);
+
+      getHelpers().charts.lineChart("win-probability-chart", labels, [{
+        label: "Kentucky Win Probability",
+        data,
+        borderColor: "#4A90D9",
+        backgroundColor: "rgba(74, 144, 217, 0.18)",
+        fill: true,
+        pointRadius: 0
+      }], {
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title(items) {
+                const item = items[0];
+                return item ? labels[item.dataIndex] : "";
+              },
+              label(context) {
+                const play = plays[context.dataIndex];
+                const away = play?.awayScore ?? "--";
+                const home = play?.homeScore ?? "--";
+                return `Win Prob: ${Number(context.parsed.y).toFixed(1)}% | Score ${away}-${home}`;
+              },
+              afterLabel(context) {
+                const play = plays[context.dataIndex];
+                return play?.playText || "";
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: {
+              callback(value) {
+                return `${value}%`;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function getPlayParticipants(play) {
+      const values = new Set();
+      const addValue = (value) => {
+        const normalized = String(value || "").trim().toLowerCase();
+        if (normalized) values.add(normalized);
+      };
+
+      safeArray(play?.participants).forEach((participant) => {
+        addValue(participant?.name);
+        addValue(participant?.displayName);
+        addValue(participant?.athlete?.name);
+      });
+
+      addValue(play?.athlete?.name);
+      addValue(play?.player?.name);
+      addValue(play?.shotInfo?.shooter?.name);
+      addValue(play?.shotInfo?.assistedBy?.name);
+      addValue(play?.foulInfo?.committedBy?.name);
+      addValue(play?.foulInfo?.drawnBy?.name);
+      addValue(play?.turnoverInfo?.committedBy?.name);
+      addValue(play?.turnoverInfo?.stealBy?.name);
+      addValue(play?.reboundInfo?.reboundedBy?.name);
+      addValue(play?.freeThrowInfo?.shooter?.name);
+
+      return values;
+    }
+
+    function playMatchesFilter(play) {
+      const playType = String(play?.playType || "").toLowerCase();
+      const typeMatches = currentPlayFilter === "scoring"
+        ? Boolean(play?.scoringPlay)
+        : currentPlayFilter === "shots"
+          ? Boolean(play?.shootingPlay)
+          : currentPlayFilter === "fouls"
+            ? playType.includes("foul")
+            : currentPlayFilter === "turnovers"
+              ? playType.includes("turnover")
+              : true;
+
+      if (!typeMatches) return false;
+      if (currentPlayPlayer === "all") return true;
+      return getPlayParticipants(play).has(currentPlayPlayer);
+    }
+
+    function periodLabel(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return "Game";
+      return numeric === 1 ? "First Half" : numeric === 2 ? "Second Half" : `Overtime ${numeric - 2}`;
+    }
+
+    function playRowClass(play) {
+      const playType = String(play?.playType || "").toLowerCase();
+      if (play?.scoringPlay) return "pbp-item pbp-item--scoring";
+      if (playType.includes("turnover")) return "pbp-item pbp-item--turnover";
+      if (playType.includes("foul")) return "pbp-item pbp-item--foul";
+      return "pbp-item";
+    }
+
+    function renderPlayByPlay() {
+      const grouped = new Map();
+      safeArray(gameState.plays).filter(playMatchesFilter).forEach((play) => {
+        const key = play?.period || 0;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(play);
+      });
+
+      const markup = Array.from(grouped.entries()).sort((a, b) => Number(a[0]) - Number(b[0])).map(([period, plays]) => `
+        <section class="pbp-period">
+          <div class="pbp-period__title">${escapeHtml(periodLabel(period))}</div>
+          ${plays.map((play) => `
+            <article class="${playRowClass(play)}">
+              <div>${escapeHtml(play?.clock || "--")}</div>
+              <div>${escapeHtml(`${play?.awayScore ?? "--"}-${play?.homeScore ?? "--"}`)}</div>
+              <div>${escapeHtml(play?.playText || play?.playType || "")}</div>
+            </article>
+          `).join("")}
+        </section>
+      `).join("");
+
+      document.getElementById("pbp-list").innerHTML = markup || '<div class="empty-state">No plays match the selected filters for this game.</div>';
+    }
+
+    function populatePlayPlayerFilter() {
+      const select = document.getElementById("pbp-player-filter");
+      if (!select) return;
+
+      const options = Array.from(new Set(
+        [...gameState.ukPlayers, ...gameState.oppPlayers]
+          .map((player) => String(player?.name || "").trim())
+          .filter(Boolean)
+      )).sort((a, b) => a.localeCompare(b));
+
+      select.innerHTML = [
+        '<option value="all">All Players</option>',
+        ...options.map((name) => `<option value="${escapeHtml(name.toLowerCase())}">${escapeHtml(name)}</option>`)
+      ].join("");
+      select.value = currentPlayPlayer;
+    }
+
+    function bindPlayerModeToggle() {
+      document.querySelectorAll("[data-player-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentPlayerMode = button.dataset.playerMode;
+          document.querySelectorAll("[data-player-mode]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderPlayerTable("uk");
+          renderPlayerTable("opp");
+        });
+      });
+    }
+
+    function bindSortableTables() {
+      document.body.addEventListener("click", (event) => {
+        const playerSortHeader = event.target.closest("[data-player-table][data-sort-key]");
+        if (playerSortHeader) {
+          const table = playerSortHeader.dataset.playerTable;
+          const key = playerSortHeader.dataset.sortKey;
+          const current = playerSorts[table];
+          playerSorts[table] = { key, asc: current.key === key ? !current.asc : key === "name" };
+          renderPlayerTable(table);
+          return;
+        }
+
+        const lineupSortHeader = event.target.closest("[data-lineup-sort]");
+        if (lineupSortHeader) {
+          const key = lineupSortHeader.dataset.lineupSort;
+          lineupSort = { key, asc: lineupSort.key === key ? !lineupSort.asc : key === "players" };
+          renderLineups();
+          return;
+        }
+      });
+    }
+
+    function bindShotControls() {
+      document.querySelectorAll("[data-shot-team]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentShotTeam = button.dataset.shotTeam;
+          document.querySelectorAll("[data-shot-team]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderShotChart();
+        });
+      });
+
+      document.querySelectorAll("[data-shot-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentShotMode = button.dataset.shotMode;
+          document.querySelectorAll("[data-shot-mode]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderShotChart();
+        });
+      });
+    }
+
+    function bindLineupControls() {
+      document.querySelectorAll("[data-lineup-team]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentLineupTeam = button.dataset.lineupTeam;
+          document.querySelectorAll("[data-lineup-team]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderLineups();
+        });
+      });
+    }
+
+    function bindPlayFilters() {
+      document.querySelectorAll("[data-play-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentPlayFilter = button.dataset.playFilter;
+          document.querySelectorAll("[data-play-filter]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderPlayByPlay();
+        });
+      });
+
+      const select = document.getElementById("pbp-player-filter");
+      if (select && !select.dataset.bound) {
+        select.dataset.bound = "true";
+        select.addEventListener("change", (event) => {
+          currentPlayPlayer = String(event.target.value || "all");
+          renderPlayByPlay();
+        });
+      }
+    }
+
+    function normalizePlayersResponse(response) {
+      const rows = safeArray(response);
+      if (!rows.length) return [];
+      return safeArray(rows[0]?.players);
+    }
+
+    function renderAll() {
+      renderHeader();
+      renderPeriodScores();
+      renderTeamComparison();
+      renderPlayerTable("uk");
+      renderPlayerTable("opp");
+      renderShotChart();
+      renderLineups();
+      renderWinProbability();
+      populatePlayPlayerFilter();
+      renderPlayByPlay();
+      document.getElementById("opp-box-title").textContent = gameState.opponentName;
+    }
+
+    async function loadGamePage() {
+      const gameId = getGameId();
+      const season = getSeason();
+
+      if (!Number.isFinite(gameId) || gameId <= 0) {
+        document.getElementById("main-content").innerHTML = '<div class="empty-state">Missing or invalid game id.</div>';
+        return;
+      }
+
+      try {
+        const gamesResponse = await getHelpers().api.apiFetch("/games", { team: TEAM_NAME, season });
+        const games = safeArray(gamesResponse);
+        const game = games.find((item) => Number(item.id) === gameId);
+
+        if (!game) {
+          document.getElementById("main-content").innerHTML = '<div class="empty-state">Game not found for the selected season.</div>';
+          return;
+        }
+
+        const opponentName = getOpponentName(game);
+        const [teamStatsResponse, ukPlayersResponse, oppPlayersResponse, playsResponse, shootingResponse, lineupsResponse, linesResponse] = await Promise.all([
+          getHelpers().api.apiFetch("/games/teams", { team: TEAM_NAME, season }),
+          getHelpers().api.apiFetch("/games/players", { team: TEAM_NAME, season }),
+          getHelpers().api.apiFetch("/games/players", { team: opponentName, season }),
+          getHelpers().api.apiFetch(`/plays/game/${gameId}`),
+          getHelpers().api.apiFetch(`/plays/game/${gameId}`, { shootingPlaysOnly: true }),
+          getHelpers().api.apiFetch(`/lineups/game/${gameId}`),
+          getHelpers().api.apiFetch("/lines", { team: TEAM_NAME, season })
+        ]);
+
+        const linesMap = buildLinesMap(linesResponse);
+        gameState = {
+          game,
+          opponentName,
+          teamStats: safeArray(teamStatsResponse).find((row) => Number(row.gameId) === gameId) || null,
+          ukPlayers: normalizePlayersResponse(safeArray(ukPlayersResponse).filter((row) => Number(row.gameId) === gameId)),
+          oppPlayers: normalizePlayersResponse(safeArray(oppPlayersResponse).filter((row) => Number(row.gameId) === gameId)),
+          plays: safeArray(playsResponse),
+          shootingPlays: safeArray(shootingResponse),
+          lineups: safeArray(lineupsResponse),
+          line: getLineForGame(game, linesMap)
+        };
+
+        renderAll();
+        bindPlayerModeToggle();
+        bindSortableTables();
+        bindShotControls();
+        bindLineupControls();
+        bindPlayFilters();
+        getHelpers().printer.bindExportButtons?.();
+      } catch (error) {
+        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load this game. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadGamePage);
+  </script>
+</body>
+</html>

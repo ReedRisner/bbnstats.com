@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Lineup Analysis</title>
+  <meta name="description" content="Kentucky lineup analysis with sortable lineup tables, detail panels, player lineup matrix, and quick-view cards.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    .filter-panel {
+      display: grid;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .slider-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
+    .slider-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--uk-light-blue);
+    }
+
+    .quick-card-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .lineup-table tbody tr {
+      cursor: pointer;
+    }
+
+    .lineup-table tbody tr.is-selected {
+      background: rgba(74, 144, 217, 0.12);
+    }
+
+    .detail-grid,
+    .matrix-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .detail-stats {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .matrix-card__split {
+      display: grid;
+      gap: 12px;
+    }
+
+    .matrix-card__label {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .lineup-chip {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .lineup-chip__title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body data-page="lineups">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="lineups-hero" class="hero-banner">
+        <span class="eyebrow">Lineup Analysis</span>
+        <h1 class="hero-title">Loading Lineup Analysis</h1>
+        <p class="lead">Kentucky 5-man lineup combinations, performance splits, and player lineup context.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <article class="card filter-panel">
+        <div class="section-header" style="margin-bottom: 0;">
+          <div>
+            <h2 class="section-title">Minimum Minutes Filter</h2>
+            <p class="section-copy">Filter out lineup combinations with very small sample sizes.</p>
+          </div>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="minutes-filter" min="0" max="40" step="1" value="10">
+          <div class="metric-value" id="minutes-filter-value">10 min</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Quick View</h2>
+          <p class="section-copy">Best lineups by net rating and most-used groups at a glance.</p>
+        </div>
+      </div>
+      <div id="quick-card-grid" class="quick-card-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Best Lineups Table</h2>
+          <p class="section-copy">Sortable lineup table. Click a row to open the detail panel.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table sortable-table lineup-table">
+            <thead id="lineup-head"></thead>
+            <tbody id="lineup-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Lineup Detail</h2>
+          <p class="section-copy">Expanded breakdown for the selected lineup plus opponent stats allowed.</p>
+        </div>
+      </div>
+      <div id="detail-panel" class="detail-grid">
+        <div class="empty-state">Select a lineup row to view the detail panel.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Player Lineup Matrix</h2>
+          <p class="section-copy">Each player’s best and worst filtered 5-man groups by net rating.</p>
+        </div>
+      </div>
+      <div id="matrix-grid" class="matrix-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    const TABLE_COLUMNS = [
+      { key: "players", label: "Players" },
+      { key: "minutes", label: "MIN" },
+      { key: "netRating", label: "NetRtg" },
+      { key: "offenseRating", label: "OffRtg" },
+      { key: "defenseRating", label: "DefRtg" },
+      { key: "pace", label: "Pace" },
+      { key: "effectiveFieldGoalPct", label: "eFG%" },
+      { key: "turnoverRatio", label: "TOV%" },
+      { key: "offensiveReboundPct", label: "OReb%" },
+      { key: "freeThrowRate", label: "FT Rate" },
+      { key: "points", label: "Points" },
+      { key: "possessions", label: "Poss" }
+    ];
+
+    let allLineups = [];
+    let filteredLineups = [];
+    let minMinutes = 10;
+    let selectedLineupId = "";
+    let currentSort = { key: "netRating", asc: false };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getSeason() {
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function normalizeLineupRow(lineup) {
+      return {
+        idHash: lineup.idHash,
+        players: safeArray(lineup.athletes).map((athlete) => athlete.name).join(", "),
+        athletes: safeArray(lineup.athletes),
+        minutes: Number(lineup.totalSeconds || 0) / 60,
+        pace: Number(lineup.pace || 0),
+        offenseRating: Number(lineup.offenseRating || 0),
+        defenseRating: Number(lineup.defenseRating || 0),
+        netRating: Number(lineup.netRating || 0),
+        points: Number(lineup.teamStats?.points || 0),
+        possessions: Number(lineup.teamStats?.possessions || 0),
+        assists: Number(lineup.teamStats?.assists || 0),
+        steals: Number(lineup.teamStats?.steals || 0),
+        blocks: Number(lineup.teamStats?.blocks || 0),
+        turnovers: Number(lineup.teamStats?.turnovers || 0),
+        offensiveRebounds: Number(lineup.teamStats?.offensiveRebounds || 0),
+        defensiveRebounds: Number(lineup.teamStats?.defensiveRebounds || 0),
+        effectiveFieldGoalPct: Number(lineup.teamStats?.fourFactors?.effectiveFieldGoalPct || 0),
+        turnoverRatio: Number(lineup.teamStats?.fourFactors?.turnoverRatio || 0),
+        offensiveReboundPct: Number(lineup.teamStats?.fourFactors?.offensiveReboundPct || 0),
+        freeThrowRate: Number(lineup.teamStats?.fourFactors?.freeThrowRate || 0),
+        trueShooting: Number(lineup.teamStats?.trueShooting || 0),
+        opponentPoints: Number(lineup.opponentStats?.points || 0),
+        opponentPossessions: Number(lineup.opponentStats?.possessions || 0),
+        opponentEffectiveFieldGoalPct: Number(lineup.opponentStats?.fourFactors?.effectiveFieldGoalPct || 0),
+        opponentTurnoverRatio: Number(lineup.opponentStats?.fourFactors?.turnoverRatio || 0),
+        opponentOffensiveReboundPct: Number(lineup.opponentStats?.fourFactors?.offensiveReboundPct || 0),
+        opponentFreeThrowRate: Number(lineup.opponentStats?.fourFactors?.freeThrowRate || 0),
+        lineup
+      };
+    }
+
+    function sortValue(row, key) {
+      if (key === "players") return row.players || "";
+      return Number(row[key] || 0);
+    }
+
+    function applyFilters() {
+      filteredLineups = allLineups
+        .filter((row) => row.minutes >= minMinutes)
+        .slice()
+        .sort((a, b) => {
+          const left = sortValue(a, currentSort.key);
+          const right = sortValue(b, currentSort.key);
+          if (typeof left === "string") {
+            return currentSort.asc ? left.localeCompare(right) : right.localeCompare(left);
+          }
+          return currentSort.asc ? left - right : right - left;
+        });
+
+      if (!filteredLineups.find((row) => row.idHash === selectedLineupId)) {
+        selectedLineupId = filteredLineups[0]?.idHash || "";
+      }
+    }
+
+    function renderHero(season) {
+      document.getElementById("lineups-hero").innerHTML = `
+        <span class="eyebrow">Lineup Analysis</span>
+        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Lineups</h1>
+        <p class="lead">How different 5-man groups performed, with sortable lineup stats and player-level lineup context.</p>
+      `;
+    }
+
+    function renderQuickCards() {
+      const topByNet = filteredLineups.slice().sort((a, b) => b.netRating - a.netRating).slice(0, 5);
+      const mostUsed = filteredLineups.slice().sort((a, b) => b.minutes - a.minutes).slice(0, 5);
+      const bottomByNet = filteredLineups.slice().sort((a, b) => a.netRating - b.netRating).slice(0, 5);
+
+      const makeList = (title, rows, statKey, formatter) => `
+        <article class="card">
+          <div class="card-title">${escapeHtml(title)}</div>
+          <div class="stack">
+            ${rows.length ? rows.map((row) => `
+              <div class="lineup-chip">
+                <div class="lineup-chip__title">${escapeHtml(row.players)}</div>
+                <div>${escapeHtml(formatter(row[statKey]))}</div>
+              </div>
+            `).join("") : '<div class="empty-state">No lineups match this filter.</div>'}
+          </div>
+        </article>
+      `;
+
+      document.getElementById("quick-card-grid").innerHTML = [
+        makeList("Best Lineups by Net Rating", topByNet, "netRating", (value) => `${fmtNum(value, 1)} NetRtg`),
+        makeList("Most-Used Lineups", mostUsed, "minutes", (value) => `${fmtNum(value, 1)} minutes`),
+        makeList("Bottom 5 by Net Rating", bottomByNet, "netRating", (value) => `${fmtNum(value, 1)} NetRtg`)
+      ].join("");
+    }
+
+    function renderTable() {
+      const head = document.getElementById("lineup-head");
+      const body = document.getElementById("lineup-body");
+
+      head.innerHTML = `<tr>${TABLE_COLUMNS.map((column) => {
+        const arrow = currentSort.key === column.key ? (currentSort.asc ? " ▲" : " ▼") : "";
+        return `<th data-sort-key="${column.key}">${escapeHtml(column.label + arrow)}</th>`;
+      }).join("")}</tr>`;
+
+      body.innerHTML = filteredLineups.length ? filteredLineups.map((row) => `
+        <tr data-lineup-id="${escapeHtml(row.idHash)}" class="${row.idHash === selectedLineupId ? "is-selected" : ""}">
+          <td>${escapeHtml(row.players)}</td>
+          <td>${escapeHtml(fmtNum(row.minutes, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.netRating, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.offenseRating, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.defenseRating, 1))}</td>
+          <td>${escapeHtml(fmtNum(row.pace, 1))}</td>
+          <td>${escapeHtml(fmtPct(row.effectiveFieldGoalPct))}</td>
+          <td>${escapeHtml(fmtPct(row.turnoverRatio))}</td>
+          <td>${escapeHtml(fmtPct(row.offensiveReboundPct))}</td>
+          <td>${escapeHtml(fmtNum(row.freeThrowRate, 2))}</td>
+          <td>${escapeHtml(row.points)}</td>
+          <td>${escapeHtml(row.possessions)}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="${TABLE_COLUMNS.length}">No lineups match the selected minimum minutes filter.</td></tr>`;
+    }
+
+    function renderDetailPanel() {
+      const target = document.getElementById("detail-panel");
+      const row = filteredLineups.find((item) => item.idHash === selectedLineupId);
+
+      if (!row) {
+        target.innerHTML = '<div class="empty-state">Select a lineup row to view the detail panel.</div>';
+        return;
+      }
+
+      target.innerHTML = `
+        <article class="card">
+          <div class="metric-label">Selected Lineup</div>
+          <div class="card-title">${escapeHtml(row.players)}</div>
+          <div class="detail-stats" style="margin-top: 16px;">
+            <div><div class="metric-label">Minutes</div><div class="metric-value">${escapeHtml(fmtNum(row.minutes, 1))}</div></div>
+            <div><div class="metric-label">Net Rating</div><div class="metric-value">${escapeHtml(fmtNum(row.netRating, 1))}</div></div>
+            <div><div class="metric-label">OffRtg</div><div class="metric-value">${escapeHtml(fmtNum(row.offenseRating, 1))}</div></div>
+            <div><div class="metric-label">DefRtg</div><div class="metric-value">${escapeHtml(fmtNum(row.defenseRating, 1))}</div></div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-title">Kentucky Production</div>
+          <div class="detail-stats" style="margin-top: 16px;">
+            <div><div class="metric-label">Points</div><div>${escapeHtml(row.points)}</div></div>
+            <div><div class="metric-label">Possessions</div><div>${escapeHtml(row.possessions)}</div></div>
+            <div><div class="metric-label">eFG%</div><div>${escapeHtml(fmtPct(row.effectiveFieldGoalPct))}</div></div>
+            <div><div class="metric-label">TOV%</div><div>${escapeHtml(fmtPct(row.turnoverRatio))}</div></div>
+            <div><div class="metric-label">OReb%</div><div>${escapeHtml(fmtPct(row.offensiveReboundPct))}</div></div>
+            <div><div class="metric-label">FT Rate</div><div>${escapeHtml(fmtNum(row.freeThrowRate, 2))}</div></div>
+            <div><div class="metric-label">AST</div><div>${escapeHtml(row.assists)}</div></div>
+            <div><div class="metric-label">STL</div><div>${escapeHtml(row.steals)}</div></div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-title">Opponent Allowed</div>
+          <div class="detail-stats" style="margin-top: 16px;">
+            <div><div class="metric-label">Points</div><div>${escapeHtml(row.opponentPoints)}</div></div>
+            <div><div class="metric-label">Possessions</div><div>${escapeHtml(row.opponentPossessions)}</div></div>
+            <div><div class="metric-label">eFG%</div><div>${escapeHtml(fmtPct(row.opponentEffectiveFieldGoalPct))}</div></div>
+            <div><div class="metric-label">TOV%</div><div>${escapeHtml(fmtPct(row.opponentTurnoverRatio))}</div></div>
+            <div><div class="metric-label">OReb%</div><div>${escapeHtml(fmtPct(row.opponentOffensiveReboundPct))}</div></div>
+            <div><div class="metric-label">FT Rate</div><div>${escapeHtml(fmtNum(row.opponentFreeThrowRate, 2))}</div></div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderPlayerMatrix() {
+      const target = document.getElementById("matrix-grid");
+      const map = new Map();
+
+      filteredLineups.forEach((row) => {
+        row.athletes.forEach((athlete) => {
+          const key = String(athlete.id);
+          if (!map.has(key)) {
+            map.set(key, { id: athlete.id, name: athlete.name, rows: [] });
+          }
+          map.get(key).rows.push(row);
+        });
+      });
+
+      const cards = Array.from(map.values())
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((entry) => {
+          const best = entry.rows.slice().sort((a, b) => b.netRating - a.netRating)[0];
+          const worst = entry.rows.slice().sort((a, b) => a.netRating - b.netRating)[0];
+
+          return `
+            <article class="card matrix-card">
+              <div class="card-title">${escapeHtml(entry.name)}</div>
+              <div class="matrix-card__split" style="margin-top: 16px;">
+                <div>
+                  <div class="matrix-card__label">Best Lineup</div>
+                  <div class="lineup-chip">
+                    <div class="lineup-chip__title">${escapeHtml(best?.players || "No lineup")}</div>
+                    <div>${escapeHtml(best ? `${fmtNum(best.netRating, 1)} NetRtg in ${fmtNum(best.minutes, 1)} min` : "--")}</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="matrix-card__label">Worst Lineup</div>
+                  <div class="lineup-chip">
+                    <div class="lineup-chip__title">${escapeHtml(worst?.players || "No lineup")}</div>
+                    <div>${escapeHtml(worst ? `${fmtNum(worst.netRating, 1)} NetRtg in ${fmtNum(worst.minutes, 1)} min` : "--")}</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `;
+        });
+
+      target.innerHTML = cards.length ? cards.join("") : '<div class="empty-state">No player lineup matrix is available for the current filter.</div>';
+    }
+
+    function renderAll() {
+      applyFilters();
+      if (!filteredLineups.find((row) => row.idHash === selectedLineupId)) {
+        selectedLineupId = filteredLineups[0]?.idHash || "";
+      }
+      renderQuickCards();
+      renderTable();
+      renderDetailPanel();
+      renderPlayerMatrix();
+    }
+
+    function bindEvents() {
+      document.getElementById("minutes-filter").addEventListener("input", (event) => {
+        minMinutes = Number(event.target.value || 0);
+        document.getElementById("minutes-filter-value").textContent = `${minMinutes} min`;
+        renderAll();
+      });
+
+      document.body.addEventListener("click", (event) => {
+        const sortHeader = event.target.closest("[data-sort-key]");
+        if (sortHeader) {
+          const key = sortHeader.dataset.sortKey;
+          currentSort = { key, asc: currentSort.key === key ? !currentSort.asc : key === "players" };
+          renderAll();
+          return;
+        }
+
+        const lineupRow = event.target.closest("[data-lineup-id]");
+        if (lineupRow) {
+          selectedLineupId = lineupRow.dataset.lineupId;
+          renderTable();
+          renderDetailPanel();
+        }
+      });
+    }
+
+    async function loadLineupsPage() {
+      const season = getSeason();
+      renderHero(season);
+      bindEvents();
+      getHelpers().printer.bindExportButtons?.({ pageName: "lineups", elementId: "main-content" });
+      document.getElementById("minutes-filter").value = String(minMinutes);
+      document.getElementById("minutes-filter-value").textContent = `${minMinutes} min`;
+
+      try {
+        const response = await getHelpers().api.apiFetch("/lineups/team", { team: TEAM_NAME, season });
+        allLineups = safeArray(response).map(normalizeLineupRow);
+        const filter = document.getElementById("minutes-filter");
+        filter.value = String(minMinutes);
+        filter.dispatchEvent(new Event("input", { bubbles: true }));
+      } catch (error) {
+        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load lineups. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadLineupsPage);
+  </script>
+</body>
+</html>
