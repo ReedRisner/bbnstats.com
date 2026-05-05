@@ -722,6 +722,28 @@
       }
     }
 
+    function hydrateFiltersFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const player = params.get("player") || params.get("search") || params.get("q") || "";
+      const team = params.get("team") || "";
+      const position = params.get("position") || "";
+      const season = params.get("season") || "";
+
+      if (season) {
+        localStorage.setItem("bbnstats_season", season);
+      }
+
+      const searchInput = document.getElementById("filter-search");
+      const teamInput = document.getElementById("filter-team");
+      const positionInput = document.getElementById("filter-position");
+
+      if (searchInput) searchInput.value = player;
+      if (teamInput) teamInput.value = team;
+      if (positionInput) positionInput.value = position;
+
+      return Boolean(player || team || position);
+    }
+
     function resetFilters() {
       FILTER_IDS.forEach((id) => {
         const input = document.getElementById(id);
@@ -755,6 +777,7 @@
       printer.bindExportButtons?.({ pageName: "finder", elementId: "main-content" });
       renderHead();
       renderReadyState();
+      const hasQueryFilters = hydrateFiltersFromQuery();
       document.getElementById("finder-head").addEventListener("click", (event) => {
         const header = event.target.closest("th[data-sort]");
         if (!header) return;
@@ -800,6 +823,10 @@
       });
       document.getElementById("reset-filters").addEventListener("click", resetFilters);
       document.getElementById("export-csv").addEventListener("click", exportCsv);
+
+      if (hasQueryFilters) {
+        await loadRowsFromInteraction();
+      }
     }
 
     document.addEventListener("DOMContentLoaded", initFinder);

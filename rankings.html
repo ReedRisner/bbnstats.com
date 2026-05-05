@@ -12,8 +12,8 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BBN Stats | Poll Rankings History</title>
-  <meta name="description" content="Kentucky AP and Coaches Poll ranking history with weekly charts and rankings tables.">
+  <title>BBN Stats | Rankings & Ratings</title>
+  <meta name="description" content="Kentucky poll rankings, adjusted efficiency ratings, and Elo history in one combined view.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,22 +26,105 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    .rankings-summary-grid {
+    .rankings-summary-grid,
+    .ratings-grid {
       display: grid;
       gap: 16px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
-    .poll-toggle-row {
+    .view-tabs,
+    .poll-toggle-row,
+    .ratings-filter-row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 16px;
     }
 
+    [data-view-section][hidden] {
+      display: none;
+    }
+
+    .rankings-board-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .table-note {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+
+    .data-table tr.is-kentucky td {
+      background: rgba(74, 144, 217, 0.12);
+      color: var(--uk-white);
+      font-weight: 700;
+    }
+
+    .rank-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid rgba(74, 144, 217, 0.26);
+      border-radius: 999px;
+      background: rgba(74, 144, 217, 0.12);
+      color: var(--uk-white);
+      font-weight: 800;
+    }
+
     .rankings-table th:first-child,
-    .rankings-table td:first-child {
-      min-width: 72px;
+    .rankings-table td:first-child,
+    .national-poll-table th:first-child,
+    .national-poll-table td:first-child,
+    .national-ratings-table th:first-child,
+    .national-ratings-table td:first-child,
+    .historical-table th:first-child,
+    .historical-table td:first-child {
+      min-width: 84px;
+    }
+
+    .context-card__bar {
+      position: relative;
+      height: 16px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(231, 76, 60, 0.22), rgba(241, 196, 15, 0.22), rgba(39, 174, 96, 0.22));
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .context-card__marker {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--uk-light-blue);
+      border: 2px solid #ffffff;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.16);
+    }
+
+    .context-card__labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 768px) {
+      .rankings-board-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -53,14 +136,106 @@
     </div>
 
     <section class="section">
-      <div id="rankings-hero" class="hero-banner">
-        <span class="eyebrow">Poll Rankings History</span>
-        <h1 class="hero-title">Loading Poll Rankings</h1>
-        <p class="lead">Weekly AP and Coaches Poll movement for Kentucky in the selected season.</p>
+      <div id="combined-hero" class="hero-banner">
+        <span class="eyebrow">Rankings & Ratings</span>
+        <h1 class="hero-title">Loading Kentucky Snapshot</h1>
+        <p class="lead">Poll movement, adjusted efficiency, and Elo context in one season view.</p>
       </div>
     </section>
 
     <section class="section">
+      <div class="view-tabs" role="tablist" aria-label="Rankings and ratings sections">
+        <button class="btn btn--secondary is-active" type="button" role="tab" aria-selected="true" data-view-tab="kentucky">Kentucky</button>
+        <button class="btn btn--ghost" type="button" role="tab" aria-selected="false" data-view-tab="national">National</button>
+      </div>
+    </section>
+
+    <section class="section" id="national-rankings" data-view-section="national" hidden>
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Current National Rankings</h2>
+          <p class="section-copy">Latest available AP and Coaches Poll top 25 for the selected season.</p>
+        </div>
+      </div>
+      <div id="national-rankings-summary-grid" class="rankings-summary-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section" data-view-section="national" hidden>
+      <div class="rankings-board-header">
+        <div class="poll-toggle-row" style="margin-bottom: 0;">
+          <button class="btn btn--secondary is-active" type="button" data-national-poll-type="ap">AP Poll</button>
+          <button class="btn btn--ghost" type="button" data-national-poll-type="coaches">Coaches Poll</button>
+        </div>
+        <div class="table-note" id="national-poll-note">Loading national polls...</div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table national-poll-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>Conference</th>
+                <th>Points</th>
+                <th>1st Place Votes</th>
+                <th>Poll Week</th>
+              </tr>
+            </thead>
+            <tbody id="national-rankings-body">
+              <tr><td colspan="6">Loading national rankings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="national-ratings" data-view-section="national" hidden>
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Current National Ratings</h2>
+          <p class="section-copy">Adjusted efficiency ratings across Division I. Filter the board by net, offense, or defense.</p>
+        </div>
+      </div>
+      <div class="rankings-board-header">
+        <div class="ratings-filter-row" style="margin-bottom: 0;">
+          <button class="btn btn--secondary is-active" type="button" data-rating-filter="net">Net Rating</button>
+          <button class="btn btn--ghost" type="button" data-rating-filter="offense">Off Rating</button>
+          <button class="btn btn--ghost" type="button" data-rating-filter="defense">Def Rating</button>
+        </div>
+        <div class="table-note" id="national-ratings-note">Loading national ratings...</div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table national-ratings-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>Conference</th>
+                <th>NetRtg</th>
+                <th>OffRtg</th>
+                <th>DefRtg</th>
+                <th>Tempo</th>
+              </tr>
+            </thead>
+            <tbody id="national-ratings-body">
+              <tr><td colspan="7">Loading national ratings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="poll-rankings" data-view-section="kentucky">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Kentucky Poll History</h2>
+          <p class="section-copy">Weekly AP and Coaches Poll movement for Kentucky in the selected season.</p>
+        </div>
+      </div>
       <div id="rankings-summary-grid" class="rankings-summary-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
@@ -68,13 +243,7 @@
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Poll Chart</h2>
-          <p class="section-copy">Weekly rank history with `#1` at the top and `NR` shown below the Top 25 line.</p>
-        </div>
-      </div>
+    <section class="section" data-view-section="kentucky">
       <div class="poll-toggle-row">
         <button class="btn btn--secondary is-active" type="button" data-poll-type="ap">AP Poll</button>
         <button class="btn btn--ghost" type="button" data-poll-type="coaches">Coaches Poll</button>
@@ -88,10 +257,10 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" data-view-section="kentucky">
       <div class="section-header">
         <div>
-          <h2 class="section-title">Rankings Table</h2>
+          <h2 class="section-title">Kentucky Rankings Table</h2>
           <p class="section-copy">Weekly poll entries with points and first-place votes.</p>
         </div>
       </div>
@@ -115,6 +284,80 @@
         </div>
       </div>
     </section>
+
+    <section class="section" id="team-ratings" data-view-section="kentucky">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Team Ratings</h2>
+          <p class="section-copy">Adjusted offensive and defensive strength, Elo context, and historical trajectory.</p>
+        </div>
+      </div>
+      <div id="ratings-grid" class="ratings-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section" data-view-section="kentucky">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">National Context</h2>
+          <p class="section-copy">Where Kentucky ratings sit relative to the 100-point national average baseline.</p>
+        </div>
+      </div>
+      <div id="context-grid" class="ratings-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section" data-view-section="kentucky">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historical Trend</h2>
+          <p class="section-copy">Adjusted net rating and Elo trend across available seasons.</p>
+        </div>
+      </div>
+      <div class="chart-shell">
+        <div class="chart-wrap">
+          <div class="chart-frame" id="trend-chart-frame">
+            <canvas id="ratings-trend-chart" aria-label="Historical ratings trend chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-view-section="kentucky">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historical Ratings Table</h2>
+          <p class="section-copy">Season-by-season adjusted efficiency and Elo values.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="data-table historical-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>OffRtg</th>
+                <th>DefRtg</th>
+                <th>NetRtg</th>
+                <th>Off Rank</th>
+                <th>Def Rank</th>
+                <th>Net Rank</th>
+                <th>Elo</th>
+              </tr>
+            </thead>
+            <tbody id="ratings-body">
+              <tr><td colspan="8">Loading ratings history...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script src="js/api.js"></script>
@@ -124,8 +367,19 @@
   <script src="js/print.js"></script>
   <script>
     const TEAM_NAME = "Kentucky";
+    const HISTORICAL_SEASONS = [2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
     let currentPollType = "ap";
+    let currentNationalPollType = "ap";
+    let currentRatingFilter = "net";
     let allRankings = [];
+    let nationalRankings = [];
+    let nationalRatingsRows = [];
+    let ratingsState = {
+      currentAdjusted: null,
+      currentElo: null,
+      currentRanks: {},
+      historical: []
+    };
 
     function getHelpers() {
       return {
@@ -155,31 +409,142 @@
       return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
     }
 
-    function seasonLabel(season) {
-      return `${season - 1}-${String(season).slice(-2)}`;
-    }
-
     function fmtDate(value) {
       return getHelpers().utils.formatDate ? getHelpers().utils.formatDate(value) : value;
     }
 
-    function filterRankingsByPoll() {
-      return allRankings
-        .filter((row) => currentPollType === "ap"
-          ? String(row?.pollType || "").toLowerCase().includes("ap")
-          : String(row?.pollType || "").toLowerCase().includes("coach"))
-        .sort((a, b) => Number(a?.week || 0) - Number(b?.week || 0));
+    function fmtNum(value, digits = 1) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "--";
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(number, digits) : number.toFixed(digits);
+    }
+
+    function fmtRank(value) {
+      const number = Number(value);
+      return Number.isFinite(number) && number > 0 ? `#${number}` : "--";
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
     }
 
     function renderHero(season) {
-      document.getElementById("rankings-hero").innerHTML = `
-        <span class="eyebrow">Poll Rankings History</span>
-        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Rankings</h1>
-        <p class="lead">Track Kentucky’s week-by-week movement in the AP and Coaches polls.</p>
+      document.getElementById("combined-hero").innerHTML = `
+        <span class="eyebrow">Rankings & Ratings</span>
+        <h1 class="hero-title">${escapeHtml(seasonLabel(season))} Kentucky Snapshot</h1>
+        <p class="lead">Track Kentucky poll movement, adjusted efficiency, and Elo context from the same page.</p>
       `;
     }
 
-    function renderSummaryCards() {
+    function lower(value) {
+      return String(value || "").toLowerCase();
+    }
+
+    function getPollFamily(row) {
+      const pollType = lower(row?.pollType);
+      if (pollType.includes("coach")) return "coaches";
+      if (pollType.includes("ap")) return "ap";
+      return pollType;
+    }
+
+    function getPollDateValue(row) {
+      const date = Date.parse(row?.pollDate || row?.date || "");
+      if (Number.isFinite(date)) return date;
+      const week = Number(row?.week || 0);
+      return Number.isFinite(week) ? week : 0;
+    }
+
+    function getTeamName(row) {
+      return row?.team || row?.school || row?.name || "";
+    }
+
+    function getConference(row) {
+      return row?.conference || row?.conferenceAbbreviation || row?.conferenceName || "--";
+    }
+
+    function isKentucky(row) {
+      return lower(getTeamName(row)) === lower(TEAM_NAME);
+    }
+
+    function latestPollRows(pollType) {
+      const rows = nationalRankings
+        .filter((row) => getPollFamily(row) === pollType)
+        .filter((row) => Number(row?.ranking) > 0);
+
+      if (!rows.length) {
+        return [];
+      }
+
+      const latestDateValue = Math.max(...rows.map(getPollDateValue));
+      return rows
+        .filter((row) => getPollDateValue(row) === latestDateValue)
+        .sort((a, b) => Number(a?.ranking || 999) - Number(b?.ranking || 999));
+    }
+
+    function latestPollLabel(rows) {
+      const first = rows[0];
+      if (!first) return "No poll data";
+      const date = first.pollDate || first.date;
+      const week = "Current Week";
+      return date ? `${week} | ${fmtDate(date)}` : week;
+    }
+
+    function renderNationalRankingCards() {
+      const apRows = latestPollRows("ap");
+      const coachesRows = latestPollRows("coaches");
+      const latestFor = (rows) => rows.find(isKentucky);
+
+      const cards = [
+        {
+          label: "AP Poll",
+          value: latestFor(apRows) ? fmtRank(latestFor(apRows).ranking) : "NR",
+          meta: latestPollLabel(apRows)
+        },
+        {
+          label: "Coaches Poll",
+          value: latestFor(coachesRows) ? fmtRank(latestFor(coachesRows).ranking) : "NR",
+          meta: latestPollLabel(coachesRows)
+        }
+      ];
+
+      document.getElementById("national-rankings-summary-grid").innerHTML = cards.map((card) => `
+        <article class="card">
+          <div class="metric-label">${escapeHtml(card.label)}</div>
+          <div class="metric-value">${escapeHtml(card.value)}</div>
+          <div class="hero-support">${escapeHtml(card.meta)}</div>
+        </article>
+      `).join("");
+    }
+
+    function renderNationalRankingsTable() {
+      const rows = latestPollRows(currentNationalPollType);
+      const pollName = currentNationalPollType === "ap" ? "AP Poll" : "Coaches Poll";
+      document.getElementById("national-poll-note").textContent = `${pollName} | ${latestPollLabel(rows)}`;
+
+      document.getElementById("national-rankings-body").innerHTML = rows.length ? rows.map((row) => `
+        <tr class="${isKentucky(row) ? "is-kentucky" : ""}">
+          <td><span class="rank-chip">${escapeHtml(fmtRank(row.ranking))}</span></td>
+          <td>${escapeHtml(getTeamName(row))}</td>
+          <td>${escapeHtml(getConference(row))}</td>
+          <td>${escapeHtml(row.points ?? "--")}</td>
+          <td>${escapeHtml(row.firstPlaceVotes ?? 0)}</td>
+          <td>Current Week</td>
+        </tr>
+      `).join("") : '<tr><td colspan="6">No national rankings are available for this poll.</td></tr>';
+    }
+
+    function renderNationalRankings() {
+      renderNationalRankingCards();
+      renderNationalRankingsTable();
+    }
+
+    function filterRankingsByPoll() {
+      return allRankings
+        .filter((row) => getPollFamily(row) === currentPollType)
+        .sort((a, b) => Number(a?.week || 0) - Number(b?.week || 0));
+    }
+
+    function renderRankingCards() {
       const rows = filterRankingsByPoll();
       const highest = rows.length ? Math.min(...rows.map((row) => Number(row.ranking || 26))) : null;
       const weeksRanked = rows.filter((row) => Number(row.ranking || 26) <= 25).length;
@@ -199,7 +564,7 @@
       `).join("");
     }
 
-    function renderChart() {
+    function renderRankingsChart() {
       const rows = filterRankingsByPoll();
       const frame = document.getElementById("rankings-chart-frame");
 
@@ -255,7 +620,7 @@
       });
     }
 
-    function renderTable() {
+    function renderRankingsTable() {
       const rows = filterRankingsByPoll();
       document.getElementById("rankings-body").innerHTML = rows.length ? rows.map((row) => `
         <tr>
@@ -269,10 +634,264 @@
       `).join("") : '<tr><td colspan="6">No rankings are available for this poll in the selected season.</td></tr>';
     }
 
-    function renderAll() {
-      renderSummaryCards();
-      renderChart();
-      renderTable();
+    function renderRankings() {
+      renderRankingCards();
+      renderRankingsChart();
+      renderRankingsTable();
+    }
+
+    function eloContext(elo) {
+      const value = Number(elo || 0);
+      if (value >= 1800) return "Top 25 nationally";
+      if (value >= 1650) return "Above average nationally";
+      if (value >= 1500) return "Nationally competitive";
+      return "Below elite tier";
+    }
+
+    function getRatingValue(row, metric) {
+      const off = Number(row?.offensiveRating ?? row?.offRtg ?? Number.NaN);
+      const def = Number(row?.defensiveRating ?? row?.defRtg ?? Number.NaN);
+      if (metric === "offense") return off;
+      if (metric === "defense") return def;
+      return Number(row?.netRating ?? (Number.isFinite(off) && Number.isFinite(def) ? off - def : Number.NaN));
+    }
+
+    function rankedRatingRows(metric) {
+      const ascending = metric === "defense";
+      return nationalRatingsRows
+        .map((row) => ({ ...row, metricValue: getRatingValue(row, metric) }))
+        .filter((row) => Number.isFinite(row.metricValue))
+        .sort((a, b) => {
+          if (a.metricValue === b.metricValue) {
+            return getTeamName(a).localeCompare(getTeamName(b));
+          }
+
+          return ascending ? a.metricValue - b.metricValue : b.metricValue - a.metricValue;
+        })
+        .map((row, index) => ({ ...row, currentRank: index + 1 }));
+    }
+
+    function renderNationalRatingsTable() {
+      const metricLabels = {
+        net: "Net Rating",
+        offense: "Off Rating",
+        defense: "Def Rating"
+      };
+      const rows = rankedRatingRows(currentRatingFilter);
+      const kentucky = rows.find(isKentucky);
+      const visibleRows = rows;
+
+      document.getElementById("national-ratings-note").textContent = kentucky
+        ? `${metricLabels[currentRatingFilter]} | Kentucky ${fmtRank(kentucky.currentRank)} of ${rows.length}`
+        : `${metricLabels[currentRatingFilter]} | Top ${Math.min(visibleRows.length, rows.length)} of ${rows.length}`;
+
+      document.getElementById("national-ratings-body").innerHTML = visibleRows.length ? visibleRows.map((row) => `
+        <tr class="${isKentucky(row) ? "is-kentucky" : ""}">
+          <td><span class="rank-chip">${escapeHtml(fmtRank(row.currentRank))}</span></td>
+          <td>${escapeHtml(getTeamName(row))}</td>
+          <td>${escapeHtml(getConference(row))}</td>
+          <td class="cell-number">${escapeHtml(fmtNum(getRatingValue(row, "net"), 1))}</td>
+          <td class="cell-number">${escapeHtml(fmtNum(getRatingValue(row, "offense"), 1))}</td>
+          <td class="cell-number">${escapeHtml(fmtNum(getRatingValue(row, "defense"), 1))}</td>
+          <td class="cell-number">${escapeHtml(fmtNum(row.tempo ?? row.pace, 1))}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="7">No national ratings are available for the selected season.</td></tr>';
+    }
+
+    function renderRatingCards() {
+      const adjusted = ratingsState.currentAdjusted || {};
+      const elo = ratingsState.currentElo || {};
+      const ranks = ratingsState.currentRanks || {};
+
+      document.getElementById("ratings-grid").innerHTML = `
+        <article class="card">
+          <div class="metric-label">Offensive Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.offensiveRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.offense ? `#${ranks.offense} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Defensive Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.defensiveRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.defense ? `#${ranks.defense} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Net Rating</div>
+          <div class="metric-value">${escapeHtml(fmtNum(adjusted.netRating, 1))}</div>
+          <div class="hero-support">${escapeHtml(ranks.net ? `#${ranks.net} nationally` : "National rank unavailable")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Elo</div>
+          <div class="metric-value">${escapeHtml(fmtNum(elo.elo, 0))}</div>
+          <div class="hero-support">${escapeHtml(eloContext(elo.elo))}</div>
+        </article>
+      `;
+    }
+
+    function renderContextBars() {
+      const adjusted = ratingsState.currentAdjusted || {};
+      const metrics = [
+        {
+          title: "Offensive Context",
+          value: Number(adjusted.offensiveRating || 0),
+          min: 90,
+          max: 130,
+          labels: ["90", "100 Avg", "130 Elite"]
+        },
+        {
+          title: "Defensive Context",
+          value: Number(adjusted.defensiveRating || 0),
+          min: 85,
+          max: 120,
+          labels: ["85 Elite", "100 Avg", "120 Poor"],
+          invert: true
+        }
+      ];
+
+      document.getElementById("context-grid").innerHTML = metrics.map((metric) => {
+        const normalized = metric.invert
+          ? ((metric.max - metric.value) / (metric.max - metric.min)) * 100
+          : ((metric.value - metric.min) / (metric.max - metric.min)) * 100;
+        const clamped = Math.max(0, Math.min(100, normalized));
+
+        return `
+          <article class="card context-card">
+            <div class="card-title">${escapeHtml(metric.title)}</div>
+            <div class="metric-value" style="margin-top: 8px;">${escapeHtml(fmtNum(metric.value, 1))}</div>
+            <div class="context-card__bar">
+              <span class="context-card__marker" style="left: ${clamped}%;"></span>
+            </div>
+            <div class="context-card__labels">
+              <span>${escapeHtml(metric.labels[0])}</span>
+              <span>${escapeHtml(metric.labels[1])}</span>
+              <span>${escapeHtml(metric.labels[2])}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderTrendChart() {
+      const rows = ratingsState.historical.slice().sort((a, b) => a.season - b.season);
+      const frame = document.getElementById("trend-chart-frame");
+      if (!rows.length) {
+        frame.innerHTML = '<div class="empty-state">No ratings history is available.</div>';
+        return;
+      }
+
+      frame.innerHTML = '<canvas id="ratings-trend-chart" aria-label="Historical ratings trend chart"></canvas>';
+      getHelpers().charts.lineChart("ratings-trend-chart", rows.map((row) => seasonLabel(row.season)), [
+        {
+          label: "Net Rating",
+          data: rows.map((row) => Number(row.adjusted?.netRating ?? 0)),
+          borderColor: "#4A90D9",
+          backgroundColor: "rgba(74, 144, 217, 0.16)",
+          fill: false
+        },
+        {
+          label: "Elo",
+          data: rows.map((row) => Number(row.elo?.elo ?? 0)),
+          borderColor: "#F3C969",
+          backgroundColor: "rgba(243, 201, 105, 0.16)",
+          fill: false,
+          yAxisID: "y1"
+        }
+      ], {
+        scales: {
+          y: {
+            position: "left",
+            title: { display: true, text: "Net Rating" }
+          },
+          y1: {
+            position: "right",
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: "Elo" }
+          }
+        }
+      });
+    }
+
+    function renderRatingsTable() {
+      document.getElementById("ratings-body").innerHTML = ratingsState.historical
+        .slice()
+        .sort((a, b) => b.season - a.season)
+        .map((row) => `
+          <tr>
+            <td>${escapeHtml(seasonLabel(row.season))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.offensiveRating, 1))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.defensiveRating, 1))}</td>
+            <td>${escapeHtml(fmtNum(row.adjusted?.netRating, 1))}</td>
+            <td>${escapeHtml(row.adjustedRanks?.offense ?? "--")}</td>
+            <td>${escapeHtml(row.adjustedRanks?.defense ?? "--")}</td>
+            <td>${escapeHtml(row.adjustedRanks?.net ?? "--")}</td>
+            <td>${escapeHtml(fmtNum(row.elo?.elo, 0))}</td>
+          </tr>
+        `).join("");
+    }
+
+    async function loadRankings(season) {
+      try {
+        const [teamResponse, nationalResponse] = await Promise.all([
+          getHelpers().api.apiFetch("/rankings", { team: TEAM_NAME, season }),
+          getHelpers().api.apiFetch("/rankings", { season })
+        ]);
+        allRankings = safeArray(teamResponse);
+        nationalRankings = safeArray(nationalResponse);
+        renderNationalRankings();
+        renderRankings();
+      } catch (error) {
+        document.getElementById("national-rankings-summary-grid").innerHTML = "";
+        document.getElementById("national-rankings-body").innerHTML = '<tr><td colspan="6">Unable to load national rankings.</td></tr>';
+        document.getElementById("national-poll-note").textContent = "Unable to load national polls.";
+        document.getElementById("rankings-summary-grid").innerHTML = "";
+        document.getElementById("rankings-chart-frame").innerHTML = `<div class="empty-state">Unable to load rankings. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+        document.getElementById("rankings-body").innerHTML = '<tr><td colspan="6">Unable to load rankings.</td></tr>';
+      }
+    }
+
+    async function loadRatings(season) {
+      try {
+        const [adjustedSummary, eloResponse] = await Promise.all([
+          getHelpers().api.getAdjustedRatingsSummary(TEAM_NAME, season),
+          getHelpers().api.apiFetch("/ratings/elo", { team: TEAM_NAME, season })
+        ]);
+
+        ratingsState.currentAdjusted = adjustedSummary?.team || {};
+        ratingsState.currentElo = safeArray(eloResponse)[0] || eloResponse || {};
+        ratingsState.currentRanks = adjustedSummary?.ranks || {};
+        nationalRatingsRows = safeArray(adjustedSummary?.rows);
+        renderNationalRatingsTable();
+        renderRatingCards();
+        renderContextBars();
+
+        const rows = await Promise.all(HISTORICAL_SEASONS.map(async (year) => {
+          try {
+            const [historyAdjusted, historyElo] = await Promise.all([
+              getHelpers().api.getAdjustedRatingsSummary(TEAM_NAME, year),
+              getHelpers().api.apiFetch("/ratings/elo", { team: TEAM_NAME, season: year })
+            ]);
+
+            return {
+              season: year,
+              adjusted: historyAdjusted?.team || {},
+              adjustedRanks: historyAdjusted?.ranks || {},
+              elo: safeArray(historyElo)[0] || historyElo || {}
+            };
+          } catch (error) {
+            return { season: year, adjusted: {}, adjustedRanks: {}, elo: {} };
+          }
+        }));
+
+        ratingsState.historical = rows;
+        renderTrendChart();
+        renderRatingsTable();
+      } catch (error) {
+        document.getElementById("national-ratings-body").innerHTML = '<tr><td colspan="7">Unable to load national ratings.</td></tr>';
+        document.getElementById("national-ratings-note").textContent = "Unable to load national ratings.";
+        document.getElementById("ratings-grid").innerHTML = `<div class="empty-state">Unable to load ratings. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
+        document.getElementById("context-grid").innerHTML = "";
+        document.getElementById("trend-chart-frame").innerHTML = '<div class="empty-state">Unable to load ratings trend.</div>';
+        document.getElementById("ratings-body").innerHTML = '<tr><td colspan="8">Unable to load ratings history.</td></tr>';
+      }
     }
 
     function bindPollToggle() {
@@ -285,27 +904,80 @@
           });
           button.classList.add("is-active", "btn--secondary");
           button.classList.remove("btn--ghost");
-          renderAll();
+          renderRankings();
         });
       });
     }
 
-    async function loadRankingsPage() {
+    function bindNationalPollToggle() {
+      document.querySelectorAll("[data-national-poll-type]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentNationalPollType = button.dataset.nationalPollType;
+          document.querySelectorAll("[data-national-poll-type]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderNationalRankingsTable();
+        });
+      });
+    }
+
+    function bindRatingFilters() {
+      document.querySelectorAll("[data-rating-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentRatingFilter = button.dataset.ratingFilter;
+          document.querySelectorAll("[data-rating-filter]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderNationalRatingsTable();
+        });
+      });
+    }
+
+    function setActiveView(view) {
+      document.querySelectorAll("[data-view-section]").forEach((section) => {
+        section.hidden = section.dataset.viewSection !== view;
+      });
+
+      document.querySelectorAll("[data-view-tab]").forEach((button) => {
+        const isActive = button.dataset.viewTab === view;
+        button.classList.toggle("is-active", isActive);
+        button.classList.toggle("btn--secondary", isActive);
+        button.classList.toggle("btn--ghost", !isActive);
+        button.setAttribute("aria-selected", String(isActive));
+      });
+    }
+
+    function bindViewTabs() {
+      document.querySelectorAll("[data-view-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          setActiveView(button.dataset.viewTab);
+        });
+      });
+    }
+
+    async function loadCombinedPage() {
       const season = getSeason();
       renderHero(season);
       bindPollToggle();
-      getHelpers().printer.bindExportButtons?.({ pageName: "rankings", elementId: "main-content" });
+      bindNationalPollToggle();
+      bindRatingFilters();
+      bindViewTabs();
+      setActiveView("kentucky");
+      getHelpers().printer.bindExportButtons?.({ pageName: "rankings-ratings", elementId: "main-content" });
 
-      try {
-        const response = await getHelpers().api.apiFetch("/rankings", { team: TEAM_NAME, season });
-        allRankings = safeArray(response);
-        renderAll();
-      } catch (error) {
-        document.getElementById("main-content").innerHTML = `<div class="empty-state">Unable to load rankings. ${escapeHtml(error?.message || "Please try again later.")}</div>`;
-      }
+      await Promise.all([
+        loadRankings(season),
+        loadRatings(season)
+      ]);
     }
 
-    document.addEventListener("DOMContentLoaded", loadRankingsPage);
+    document.addEventListener("DOMContentLoaded", loadCombinedPage);
   </script>
 </body>
 </html>

@@ -9,8 +9,8 @@ const NAV_LINKS = [
   { href: "team-compare.html", label: "Team Compare" },
   { href: "compare.html", label: "Player Compare" },
   { href: "lineups.html", label: "Lineups" },
-  { href: "rankings.html", label: "Rankings" },
-  { href: "ratings.html", label: "Ratings" }
+  { href: "rankings.html", label: "Rankings & Ratings" },
+  { href: "recruiting-nba.html", label: "Recruiting & NBA" }
 ];
 
 const SEASON_OPTIONS = Array.from({ length: 2027 - 2000 + 1 }, (_, index) => 2027 - index);

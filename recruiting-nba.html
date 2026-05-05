@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-25CW7MFC29"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-25CW7MFC29');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Recruiting & NBA</title>
+  <meta name="description" content="Kentucky recruiting rankings, transfer portal activity, and NBA draft picks.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <style>
+    .recruiting-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .page-tabs,
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .filter-row {
+      align-items: end;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 6px;
+      min-width: min(100%, 180px);
+    }
+
+    .filter-field label {
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .filter-field input {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .portal-table,
+    .draft-table,
+    .recruits-table,
+    .team-rank-table {
+      min-width: 900px;
+    }
+
+    .table-note {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body data-page="recruiting-nba">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div id="recruiting-hero" class="hero-banner">
+        <span class="eyebrow">Recruiting & NBA</span>
+        <h1 class="hero-title">Loading Talent Pipeline</h1>
+        <p class="lead">Recruiting classes, portal movement, and Kentucky NBA draft picks.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-tabs" aria-label="Recruiting and NBA sections">
+        <a class="btn btn--secondary is-active" href="#team-rankings">Team Rankings</a>
+        <a class="btn btn--ghost" href="#player-rankings">Player Rankings</a>
+        <a class="btn btn--ghost" href="#transfer-portal">Portal</a>
+        <a class="btn btn--ghost" href="#nba-draft">NBA Draft</a>
+      </div>
+      <form class="filter-row" id="recruiting-filters">
+        <div class="filter-field">
+          <label for="team-filter">Team</label>
+          <input id="team-filter" name="team" type="text" value="Kentucky" autocomplete="off">
+        </div>
+        <div class="filter-field">
+          <label for="year-filter">Year</label>
+          <input id="year-filter" name="year" type="number" inputmode="numeric">
+        </div>
+        <div class="filter-field">
+          <label for="position-filter">Position</label>
+          <input id="position-filter" name="position" type="text" placeholder="All" autocomplete="off">
+        </div>
+        <button class="btn btn--secondary" type="submit">Apply</button>
+      </form>
+    </section>
+
+    <section class="section">
+      <div id="pipeline-grid" class="recruiting-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="section" id="team-rankings">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Recruiting Composite</h2>
+          <p class="section-copy">Team composite class ranking from the recruiting teams endpoint.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note" id="team-rank-note">Loading team rankings...</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table team-rank-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>Conference</th>
+                <th>Commits</th>
+                <th>5 Stars</th>
+                <th>4 Stars</th>
+                <th>Avg Rating</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody id="team-rank-body">
+              <tr><td colspan="8">Loading team rankings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="player-rankings">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Player Recruiting</h2>
+          <p class="section-copy">Kentucky player recruiting rankings and ratings for the selected class year.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note" id="recruits-note">Loading player rankings...</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table recruits-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Pos</th>
+                <th>Team</th>
+                <th>Stars</th>
+                <th>Rating</th>
+                <th>Hometown</th>
+                <th>School</th>
+              </tr>
+            </thead>
+            <tbody id="recruits-body">
+              <tr><td colspan="8">Loading player rankings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="transfer-portal">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Transfer Portal</h2>
+          <p class="section-copy">Portal activity where Kentucky is the source or destination team.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note" id="portal-note">Loading portal players...</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table portal-table">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Player</th>
+                <th>Pos</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Rating</th>
+                <th>Stars</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="portal-body">
+              <tr><td colspan="8">Loading portal players...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="nba-draft">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">NBA Draft Picks</h2>
+          <p class="section-copy">Historical NBA draft picks sourced from the selected college team.</p>
+        </div>
+      </div>
+      <div class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note" id="draft-note">Loading draft picks...</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table draft-table">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Player</th>
+                <th>Pos</th>
+                <th>Round</th>
+                <th>Pick</th>
+                <th>Overall</th>
+                <th>NBA Team</th>
+                <th>College</th>
+              </tr>
+            </thead>
+            <tbody id="draft-body">
+              <tr><td colspan="8">Loading draft picks...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const DEFAULT_TEAM = "Kentucky";
+    const TABLE_LIMIT = 100;
+    let pipelineState = {
+      teamRankings: [],
+      recruits: [],
+      portal: [],
+      draft: []
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getSeason() {
+      return getHelpers().utils.getSeason ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function fmtNum(value, digits = 2) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "--";
+      return number.toFixed(digits).replace(/\.?0+$/, "");
+    }
+
+    function readPath(row, key) {
+      return String(key).split(".").reduce((value, part) => value?.[part], row);
+    }
+
+    function val(row, keys, fallback = "--") {
+      for (const key of keys) {
+        const value = readPath(row, key);
+        if (value !== undefined && value !== null && value !== "") {
+          return value;
+        }
+      }
+      return fallback;
+    }
+
+    function lower(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function teamMatches(row, team) {
+      const teamValue = lower(team);
+      return [
+        row?.team,
+        row?.school,
+        row?.college,
+        row?.sourceTeam,
+        row?.destinationTeam,
+        row?.sourceTeamLocation,
+        row?.sourceTeamName,
+        row?.committedTo,
+        row?.commitTeam,
+        row?.committedTo?.name,
+        row?.origin?.name,
+        row?.destination?.name
+      ].some((value) => lower(value) === teamValue);
+    }
+
+    function getRecruitingYear() {
+      return 2026;
+    }
+
+    function playerName(row) {
+      const combinedName = val(row, ["name", "player", "athleteName"], "");
+      if (combinedName) return combinedName;
+
+      return [row?.firstName, row?.lastName].filter(Boolean).join(" ") || "--";
+    }
+
+    function finderLink(row, season, team = "") {
+      const url = new URL("finder.html", window.location.href);
+      url.searchParams.set("player", playerName(row));
+      url.searchParams.set("season", String(season || getSeason()));
+      if (team) url.searchParams.set("team", team);
+      return url.toString();
+    }
+
+    function playerLink(row, season, fallbackTeam = "") {
+      const name = playerName(row);
+      const athleteId = val(row, ["athleteId"], "");
+
+      if (!athleteId || !Number.isFinite(Number(athleteId))) {
+        return `<a class="cell-link" href="${escapeHtml(finderLink(row, season, fallbackTeam))}">${escapeHtml(name)}</a>`;
+      }
+
+      const url = `player.html?id=${encodeURIComponent(athleteId)}&season=${encodeURIComponent(season || getSeason())}`;
+      return `<a class="cell-link" href="${url}">${escapeHtml(name)}</a>`;
+    }
+
+    function filterPosition(rows, position) {
+      const needle = lower(position);
+      if (!needle) return rows;
+      return rows.filter((row) => lower(val(row, ["position", "pos"], "")).includes(needle));
+    }
+
+    function sortByRank(rows) {
+      return rows.slice().sort((a, b) => {
+        const left = Number(val(a, ["rank", "ranking", "nationalRank", "overallRank"], Number.MAX_SAFE_INTEGER));
+        const right = Number(val(b, ["rank", "ranking", "nationalRank", "overallRank"], Number.MAX_SAFE_INTEGER));
+        return left - right;
+      });
+    }
+
+    function renderHero(team, year) {
+      document.getElementById("recruiting-hero").innerHTML = `
+        <span class="eyebrow">Recruiting & NBA</span>
+        <h1 class="hero-title">${escapeHtml(team)} Talent Pipeline</h1>
+        <p class="lead">Composite recruiting rankings, player commitments, portal movement, and NBA draft picks for ${escapeHtml(year)}.</p>
+      `;
+    }
+
+    function renderCards(team) {
+      const teamRank = pipelineState.teamRankings.find((row) => lower(val(row, ["team"], "")) === lower(team)) || pipelineState.teamRankings[0] || {};
+      const commits = pipelineState.recruits.length;
+      const incoming = pipelineState.portal.filter((row) => lower(val(row, ["destinationTeam", "destination.name"], "")) === lower(team)).length;
+      const outgoing = pipelineState.portal.filter((row) => lower(val(row, ["sourceTeam", "origin.name"], "")) === lower(team)).length;
+      const latestPick = pipelineState.draft[0] || {};
+
+      const cards = [
+        { label: "Composite Rank", value: val(teamRank, ["rank", "ranking", "teamRank"], "--"), support: val(teamRank, ["points", "totalPoints", "score", "rating"], "Team ranking loaded") },
+        { label: "Listed Recruits", value: commits, support: "Selected class year" },
+        { label: "Portal Activity", value: incoming + outgoing, support: `${incoming} in / ${outgoing} out` },
+        { label: "Latest Draft Pick", value: val(latestPick, ["year", "draftYear"], "--"), support: val(latestPick, ["player", "name", "athleteName"], "No pick found") }
+      ];
+
+      document.getElementById("pipeline-grid").innerHTML = cards.map((card) => `
+        <article class="card">
+          <div class="metric-label">${escapeHtml(card.label)}</div>
+          <div class="metric-value">${escapeHtml(card.value)}</div>
+          <div class="hero-support">${escapeHtml(card.support)}</div>
+        </article>
+      `).join("");
+    }
+
+    function renderTeamRankings(team) {
+      const rows = sortByRank(pipelineState.teamRankings).slice(0, TABLE_LIMIT);
+      document.getElementById("team-rank-note").textContent = rows.length
+        ? `Showing ${rows.length} team ranking row${rows.length === 1 ? "" : "s"}.`
+        : `No team composite rows found for ${team}.`;
+      document.getElementById("team-rank-body").innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(val(row, ["rank", "ranking", "teamRank"]))}</td>
+          <td class="cell-strong">${escapeHtml(val(row, ["team"]))}</td>
+          <td>${escapeHtml(val(row, ["conference", "conf"]))}</td>
+          <td>${escapeHtml(val(row, ["commits", "recruits", "commitCount"]))}</td>
+          <td>${escapeHtml(val(row, ["fiveStars", "fiveStar", "stars5"]))}</td>
+          <td>${escapeHtml(val(row, ["fourStars", "fourStar", "stars4"]))}</td>
+          <td>${escapeHtml(fmtNum(val(row, ["averageRating", "avgRating", "rating"], Number.NaN), 3))}</td>
+          <td>${escapeHtml(fmtNum(val(row, ["points", "totalPoints", "score"], Number.NaN), 2))}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="8">No team composite rankings found.</td></tr>';
+    }
+
+    function renderRecruits(team) {
+      const rows = sortByRank(pipelineState.recruits).slice(0, TABLE_LIMIT);
+      document.getElementById("recruits-note").textContent = rows.length
+        ? `Showing ${rows.length} player recruiting row${rows.length === 1 ? "" : "s"}.`
+        : `No player recruiting rows found for ${team}.`;
+      document.getElementById("recruits-body").innerHTML = rows.length ? rows.map((row) => {
+        const hometown = [val(row, ["city", "hometown.city"], ""), val(row, ["state", "province", "hometown.state"], "")]
+          .filter(Boolean)
+          .join(", ") || "--";
+
+        return `
+          <tr>
+            <td>${escapeHtml(val(row, ["rank", "ranking", "nationalRank", "overallRank"]))}</td>
+            <td class="cell-strong">${playerLink(row, Number(row.year || getSeason()), val(row, ["committedTo.name", "team"], ""))}</td>
+            <td>${escapeHtml(val(row, ["position", "pos"]))}</td>
+            <td>${escapeHtml(val(row, ["team", "committedTo.name", "commitTeam", "school"]))}</td>
+            <td>${escapeHtml(val(row, ["stars", "starRating"]))}</td>
+            <td>${escapeHtml(fmtNum(val(row, ["rating", "compositeRating", "score"], Number.NaN), 3))}</td>
+            <td>${escapeHtml(hometown)}</td>
+            <td>${escapeHtml(val(row, ["highSchool", "school", "hometownSchool"]))}</td>
+          </tr>
+        `;
+      }).join("") : '<tr><td colspan="8">No player recruiting rankings found.</td></tr>';
+    }
+
+    function renderPortal(team) {
+      const rows = pipelineState.portal.slice(0, TABLE_LIMIT);
+      document.getElementById("portal-note").textContent = rows.length
+        ? `Showing ${rows.length} portal row${rows.length === 1 ? "" : "s"} where ${team} is source or destination.`
+        : `No portal rows found for ${team}.`;
+      document.getElementById("portal-body").innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(val(row, ["year", "season"]))}</td>
+          <td class="cell-strong">${playerLink(row, Number(row.year || getSeason()))}</td>
+          <td>${escapeHtml(val(row, ["position", "pos"]))}</td>
+          <td>${escapeHtml(val(row, ["sourceTeam", "fromTeam", "previousTeam", "origin.name"]))}</td>
+          <td>${escapeHtml(val(row, ["destinationTeam", "toTeam", "newTeam", "destination.name"]))}</td>
+          <td>${escapeHtml(fmtNum(val(row, ["rating", "score"], Number.NaN), 3))}</td>
+          <td>${escapeHtml(val(row, ["stars", "starRating"]))}</td>
+          <td>${escapeHtml(val(row, ["status", "transferStatus", "commitmentStatus", "eligibility"]))}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="8">No transfer portal activity found.</td></tr>';
+    }
+
+    function renderDraft(team) {
+      const rows = pipelineState.draft.slice(0, TABLE_LIMIT);
+      document.getElementById("draft-note").textContent = rows.length
+        ? `Showing ${rows.length} historical NBA draft pick${rows.length === 1 ? "" : "s"} from ${team}.`
+        : `No NBA draft picks found for ${team}.`;
+      document.getElementById("draft-body").innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(val(row, ["year", "draftYear"]))}</td>
+          <td class="cell-strong">${playerLink(row, val(row, ["year", "draftYear"], getSeason()))}</td>
+          <td>${escapeHtml(val(row, ["position", "pos"]))}</td>
+          <td>${escapeHtml(val(row, ["round"]))}</td>
+          <td>${escapeHtml(val(row, ["pick", "pickNumber"]))}</td>
+          <td>${escapeHtml(val(row, ["overall", "overallPick", "selection"]))}</td>
+          <td>${escapeHtml(val(row, ["draftTeam", "nbaTeam", "team"]))}</td>
+          <td>${escapeHtml(val(row, ["sourceTeam", "college", "collegeTeam", "sourceTeamLocation", "sourceTeamName"]))}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="8">No NBA draft picks found.</td></tr>';
+    }
+
+    function renderAll(team) {
+      renderCards(team);
+      renderTeamRankings(team);
+      renderRecruits(team);
+      renderPortal(team);
+      renderDraft(team);
+    }
+
+    function setLoading() {
+      document.getElementById("pipeline-grid").innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
+      document.getElementById("team-rank-body").innerHTML = '<tr><td colspan="8">Loading team rankings...</td></tr>';
+      document.getElementById("recruits-body").innerHTML = '<tr><td colspan="8">Loading player rankings...</td></tr>';
+      document.getElementById("portal-body").innerHTML = '<tr><td colspan="8">Loading portal players...</td></tr>';
+      document.getElementById("draft-body").innerHTML = '<tr><td colspan="8">Loading draft picks...</td></tr>';
+    }
+
+    function renderError(message) {
+      const error = escapeHtml(message || "Please try again later.");
+      document.getElementById("pipeline-grid").innerHTML = `<div class="empty-state">Unable to load recruiting and NBA data. ${error}</div>`;
+      document.getElementById("team-rank-body").innerHTML = '<tr><td colspan="8">Unable to load team rankings.</td></tr>';
+      document.getElementById("recruits-body").innerHTML = '<tr><td colspan="8">Unable to load player rankings.</td></tr>';
+      document.getElementById("portal-body").innerHTML = '<tr><td colspan="8">Unable to load portal players.</td></tr>';
+      document.getElementById("draft-body").innerHTML = '<tr><td colspan="8">Unable to load draft picks.</td></tr>';
+    }
+
+    async function loadPipeline() {
+      const form = document.getElementById("recruiting-filters");
+      const team = form.elements.team.value.trim() || DEFAULT_TEAM;
+      const year = Number(form.elements.year.value || getRecruitingYear());
+      const position = form.elements.position.value.trim();
+      const api = getHelpers().api;
+
+      renderHero(team, year);
+      setLoading();
+
+      try {
+        const [teamRankingsResponse, recruitsResponse, incomingPortalResponse, outgoingPortalResponse, draftResponse] = await Promise.all([
+          api.apiFetch("/recruiting/teams", { year }),
+          api.apiFetch("/recruiting/players", { year, team, position }),
+          api.apiFetch("/recruiting/portal", { year, destinationTeam: team, position }),
+          api.apiFetch("/recruiting/portal", { year, sourceTeam: team, position }),
+          api.apiFetch("/draft/picks", { sourceTeam: team, position })
+        ]);
+
+        const portalRows = [...safeArray(incomingPortalResponse), ...safeArray(outgoingPortalResponse)];
+        const dedupedPortal = Array.from(new Map(portalRows.map((row, index) => [
+          `${val(row, ["year", "season"], year)}-${val(row, ["name", "player", "athleteName", "firstName"], index)}-${val(row, ["sourceTeam", "origin.name"], "")}-${val(row, ["destinationTeam", "destination.name"], "")}`,
+          row
+        ])).values());
+
+        pipelineState = {
+          teamRankings: safeArray(teamRankingsResponse).filter((row) => !team || teamMatches(row, team)),
+          recruits: filterPosition(safeArray(recruitsResponse).filter((row) => !team || teamMatches(row, team)), position),
+          portal: filterPosition(dedupedPortal.filter((row) => !team || teamMatches(row, team)), position),
+          draft: filterPosition(safeArray(draftResponse)
+            .filter((row) => !team || teamMatches(row, team))
+            .sort((a, b) => Number(val(b, ["year", "draftYear"], 0)) - Number(val(a, ["year", "draftYear"], 0))), position)
+        };
+
+        renderAll(team);
+      } catch (error) {
+        renderError(error?.message);
+      }
+    }
+
+    function bindTabs() {
+      document.querySelectorAll(".page-tabs a").forEach((link) => {
+        link.addEventListener("click", () => {
+          document.querySelectorAll(".page-tabs a").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          link.classList.add("is-active", "btn--secondary");
+          link.classList.remove("btn--ghost");
+        });
+      });
+    }
+
+    function initPage() {
+      document.getElementById("year-filter").value = getRecruitingYear();
+      bindTabs();
+      document.getElementById("recruiting-filters").addEventListener("submit", (event) => {
+        event.preventDefault();
+        loadPipeline();
+      });
+      getHelpers().printer.bindExportButtons?.({ pageName: "recruiting-nba", elementId: "main-content" });
+      loadPipeline();
+    }
+
+    document.addEventListener("DOMContentLoaded", initPage);
+  </script>
+</body>
+</html>
