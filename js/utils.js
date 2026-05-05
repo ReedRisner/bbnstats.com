@@ -176,13 +176,16 @@ function isKentuckyTeam(team) {
 }
 
 function normalizeClassYearLabel(value) {
-  const normalized = String(value || "").trim().toUpperCase();
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, "");
 
-  if (normalized === "FR") return "Fr.";
-  if (normalized === "SO") return "So.";
-  if (normalized === "JR") return "Jr.";
-  if (normalized === "SR") return "Sr.";
-  if (normalized === "GR") return "Gr.";
+  if (["FR", "FRESHMAN", "FIRST YEAR", "1"].includes(normalized)) return "Fr.";
+  if (["SO", "SOPHOMORE", "SECOND YEAR", "2"].includes(normalized)) return "So.";
+  if (["JR", "JUNIOR", "THIRD YEAR", "3"].includes(normalized)) return "Jr.";
+  if (["SR", "SENIOR", "FOURTH YEAR", "4"].includes(normalized)) return "Sr.";
+  if (["GR", "GRAD", "GRADUATE", "FIFTH YEAR", "5"].includes(normalized)) return "Gr.";
 
   return "";
 }
@@ -197,9 +200,14 @@ function getPlayerClassYear(player, season = DEFAULT_SEASON) {
     return normalizeClassYearLabel(matchedEntry[1]);
   }
 
+  const explicitClass = normalizeClassYearLabel(player?.classYear || player?.class || player?.year);
+  if (explicitClass) {
+    return explicitClass;
+  }
+
   const start = Number(player?.startSeason || season);
-  const years = Math.max(0, season - start);
-  const labels = ["Fr.", "So.", "Jr.", "Sr."];
+  const years = Math.max(0, Number(season) - start);
+  const labels = ["Fr.", "So.", "Jr.", "Sr.", "Gr."];
   return labels[Math.min(years, labels.length - 1)] || "Fr.";
 }
 
@@ -592,6 +600,7 @@ window.BBNStatsUtils = {
   normalizePlayerName,
   normalizeTeamName,
   isKentuckyTeam,
+  normalizeClassYearLabel,
   getSeason,
   setSeason,
   fmtPct,

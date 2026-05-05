@@ -221,10 +221,6 @@
     <section class="section">
       <div class="leaderboard-controls">
         <div class="leaderboard-progress" id="leaderboard-progress">Preparing historical leaderboards...</div>
-        <div class="btn-group" aria-label="Leaderboard filters">
-          <button class="btn btn--secondary is-active" type="button" data-leaderboard-sample="rotation">Rotation</button>
-          <button class="btn btn--ghost" type="button" data-leaderboard-sample="all">All Players</button>
-        </div>
       </div>
     </section>
 
@@ -252,25 +248,8 @@
     const TEAM_NAME = "Kentucky";
     const LOADED_SEASONS = Array.from({ length: 2026 - 2000 + 1 }, (_, index) => 2026 - index);
     const BOARD_LIMIT = 10;
-    const SAMPLE_RULES = {
-      rotation: {
-        label: "Rotation",
-        minGames: 8,
-        minMinutesPerGame: 10,
-        minFgaPerGame: 3,
-        minThreesPerGame: 1
-      },
-      all: {
-        label: "All Players",
-        minGames: 1,
-        minMinutesPerGame: 0,
-        minFgaPerGame: 0,
-        minThreesPerGame: 0
-      }
-    };
 
     let leaderboardRows = [];
-    let sampleMode = "rotation";
 
     function getHelpers() {
       return {
@@ -348,6 +327,11 @@
       const classYear = getClassYear(row, season);
       const ppg = perGame(row.points, games);
       const mpg = perGame(row.minutes, games);
+      const rpg = perGame(row.rebounds?.total, games);
+      const apg = perGame(row.assists, games);
+      const spg = perGame(row.steals, games);
+      const bpg = perGame(row.blocks, games);
+      const tpg = perGame(row.turnovers, games);
       const fgaPerGame = perGame(fieldGoalAttempts, games);
       const threePerGame = perGame(threeAttempts, games);
       const rating = getHelpers().utils.calculateCollegePlayerRating
@@ -374,103 +358,137 @@
         rating,
         trueShooting,
         effectiveFieldGoal,
+        fieldGoalPct: shotPct(row.fieldGoals),
+        twoPointPct: shotPct(row.twoPointFieldGoals),
+        threePointPct: shotPct(row.threePointFieldGoals),
+        freeThrowPct: shotPct(row.freeThrows),
         netRating: Number(row.netRating || 0),
         offensiveRating: Number(row.offensiveRating || 0),
+        defensiveRating: Number(row.defensiveRating || 0),
+        usage: Number(row.usage || 0),
+        porpag: Number(row.PORPAG || row.porpag || 0),
+        assistsTurnoverRatio: Number(row.assistsTurnoverRatio || 0),
+        freeThrowRate: Number(row.freeThrowRate || 0),
+        offensiveReboundPct: Number(row.offensiveReboundPct || 0),
+        winShares: Number(row.winShares?.total || 0),
+        wsPer40: Number(row.winShares?.totalPer40 || 0),
+        points: Number(row.points || 0),
+        rebounds: Number(row.rebounds?.total || 0),
+        assists: Number(row.assists || 0),
+        steals: Number(row.steals || 0),
+        blocks: Number(row.blocks || 0),
+        turnovers: Number(row.turnovers || 0),
+        minutes: Number(row.minutes || 0),
+        starts: Number(row.gamesStarted || row.starts || 0),
+        fieldGoalsMade: Number(row.fieldGoals?.made || 0),
         fieldGoalAttempts,
+        twoPointMade: Number(row.twoPointFieldGoals?.made || 0),
+        twoPointAttempts: Number(row.twoPointFieldGoals?.attempted || 0),
+        threePointMade: Number(row.threePointFieldGoals?.made || 0),
         threeAttempts,
+        freeThrowsMade: Number(row.freeThrows?.made || 0),
         freeThrowAttempts,
+        rpg,
+        apg,
+        spg,
+        bpg,
+        tpg,
         efficiencyScore
       };
     }
 
-    function sortByMetric(rows, key) {
+    function sortByMetric(rows, key, ascending = false) {
       return rows
         .slice()
         .filter((row) => Number.isFinite(Number(row[key])))
         .sort((left, right) => {
-          const diff = Number(right[key]) - Number(left[key]);
+          const diff = ascending
+            ? Number(left[key]) - Number(right[key])
+            : Number(right[key]) - Number(left[key]);
           if (diff !== 0) return diff;
           return String(left.name || "").localeCompare(String(right.name || ""));
         })
         .slice(0, BOARD_LIMIT);
     }
 
-    function passesSample(row, overrides = {}) {
-      const rule = { ...SAMPLE_RULES[sampleMode], ...overrides };
-      return row.games >= rule.minGames
-        && row.mpg >= rule.minMinutesPerGame
-        && row.fgaPerGame >= rule.minFgaPerGame
-        && row.threePerGame >= rule.minThreesPerGame;
+    function hasAttempts(key) {
+      return (row) => Number(row[key] || 0) > 0;
+    }
+
+    function board(id, title, note, badge, rows, key, value, detail, ascending = false) {
+      return {
+        id,
+        title,
+        note,
+        badge,
+        rows: sortByMetric(rows, key, ascending),
+        value,
+        detail
+      };
     }
 
     function buildBoards(rows) {
-      const eligible = rows.filter((row) => passesSample(row));
-      const shooters = rows.filter((row) => passesSample(row, { minFgaPerGame: SAMPLE_RULES[sampleMode].minFgaPerGame || 2 }));
-      const threePointShooters = rows.filter((row) => passesSample(row, { minThreesPerGame: SAMPLE_RULES[sampleMode].minThreesPerGame || 1 }));
-      const freshmen = rows.filter((row) => row.classYear === "Fr." && passesSample(row, { minThreesPerGame: 0 }));
+      const all = rows.filter((row) => row.games > 0);
+      const fieldGoalRows = all.filter(hasAttempts("fieldGoalAttempts"));
+      const twoPointRows = all.filter(hasAttempts("twoPointAttempts"));
+      const threePointRows = all.filter(hasAttempts("threeAttempts"));
+      const freeThrowRows = all.filter(hasAttempts("freeThrowAttempts"));
+      const trueShootingRows = all.filter((row) => Number(row.trueShooting || 0) > 0);
+      const defensiveRows = all.filter((row) => Number(row.defensiveRating || 0) > 0);
+      const usageRows = all.filter((row) => Number(row.usage || 0) > 0);
+      const astToRows = all.filter((row) => Number(row.assistsTurnoverRatio || 0) > 0);
+      const orebRows = all.filter((row) => Number(row.offensiveReboundPct || 0) > 0);
+      const porpagRows = all.filter((row) => Number(row.porpag || 0) !== 0);
+      const winShareRows = all.filter((row) => Number(row.winShares || 0) > 0);
+      const wsPer40Rows = all.filter((row) => Number(row.wsPer40 || 0) > 0);
+      const freshmen = all.filter((row) => row.classYear === "Fr.");
+      const perGameDetail = (row) => `${fmtNum(row.mpg, 1)} MPG`;
+      const totalDetail = (stat) => (row) => `${row.games} G | ${fmtNum(perGame(row[stat], row.games), 1)}/G`;
+      const shotDetail = (made, attempts) => (row) => `${row[made]}-${row[attempts]}`;
 
       return [
-        {
-          id: "ppg",
-          title: "Top PPG Seasons",
-          note: "Scoring average by player season.",
-          badge: "PPG",
-          rows: sortByMetric(eligible, "ppg"),
-          value: (row) => `${fmtNum(row.ppg, 1)} PPG`,
-          detail: (row) => `${fmtNum(row.mpg, 1)} MPG`
-        },
-        {
-          id: "ts",
-          title: "Best TS%",
-          note: "True shooting percentage with volume filters.",
-          badge: "TS%",
-          rows: sortByMetric(shooters, "trueShooting"),
-          value: (row) => fmtPct(row.trueShooting),
-          detail: (row) => `${fmtNum(row.fgaPerGame, 1)} FGA/G`
-        },
-        {
-          id: "rating",
-          title: "Best College Player Rating",
-          note: "BBN Stats composite rating for a player season.",
-          badge: "Rating",
-          rows: sortByMetric(eligible, "rating"),
-          value: (row) => fmtNum(row.rating, 1),
-          detail: (row) => `${fmtNum(row.ppg, 1)} PPG`
-        },
-        {
-          id: "net",
-          title: "Best Net Rating",
-          note: "On-court adjusted point margin per 100 possessions.",
-          badge: "Net",
-          rows: sortByMetric(eligible, "netRating"),
-          value: (row) => fmtNum(row.netRating, 1),
-          detail: (row) => `${fmtNum(row.offensiveRating, 1)} OffRtg`
-        },
-        {
-          id: "shooters",
-          title: "Most Efficient Shooters",
-          note: "Blend of TS%, eFG%, perimeter accuracy, free throws, and volume.",
-          badge: "Score",
-          rows: sortByMetric(threePointShooters, "efficiencyScore"),
-          value: (row) => fmtNum(row.efficiencyScore, 1),
-          detail: (row) => `${fmtPct(row.trueShooting)} TS`
-        },
-        {
-          id: "freshmen",
-          title: "Best Freshman Seasons",
-          note: "Freshman seasons ranked by the BBN Stats player rating.",
-          badge: "Fr.",
-          rows: sortByMetric(freshmen, "rating"),
-          value: (row) => fmtNum(row.rating, 1),
-          detail: (row) => `${fmtNum(row.ppg, 1)} PPG`
-        }
+        board("ppg", "Top PPG Seasons", "Scoring average by player season.", "PPG", all, "ppg", (row) => `${fmtNum(row.ppg, 1)} PPG`, perGameDetail),
+        board("points", "Most Points", "Total points in a Kentucky season.", "PTS", all, "points", (row) => fmtNum(row.points, 0), totalDetail("points")),
+        board("rpg", "Top RPG Seasons", "Rebounding average by player season.", "RPG", all, "rpg", (row) => `${fmtNum(row.rpg, 1)} RPG`, perGameDetail),
+        board("rebounds", "Most Rebounds", "Total rebounds in a Kentucky season.", "REB", all, "rebounds", (row) => fmtNum(row.rebounds, 0), totalDetail("rebounds")),
+        board("apg", "Top APG Seasons", "Assist average by player season.", "APG", all, "apg", (row) => `${fmtNum(row.apg, 1)} APG`, perGameDetail),
+        board("assists", "Most Assists", "Total assists in a Kentucky season.", "AST", all, "assists", (row) => fmtNum(row.assists, 0), totalDetail("assists")),
+        board("spg", "Top SPG Seasons", "Steal average by player season.", "SPG", all, "spg", (row) => `${fmtNum(row.spg, 1)} SPG`, perGameDetail),
+        board("steals", "Most Steals", "Total steals in a Kentucky season.", "STL", all, "steals", (row) => fmtNum(row.steals, 0), totalDetail("steals")),
+        board("bpg", "Top BPG Seasons", "Block average by player season.", "BPG", all, "bpg", (row) => `${fmtNum(row.bpg, 1)} BPG`, perGameDetail),
+        board("blocks", "Most Blocks", "Total blocks in a Kentucky season.", "BLK", all, "blocks", (row) => fmtNum(row.blocks, 0), totalDetail("blocks")),
+        board("mpg", "Top MPG Seasons", "Minutes played average by player season.", "MPG", all, "mpg", (row) => `${fmtNum(row.mpg, 1)} MPG`, (row) => `${row.games} G`),
+        board("minutes", "Most Minutes", "Total minutes played in a Kentucky season.", "MIN", all, "minutes", (row) => fmtNum(row.minutes, 0), totalDetail("minutes")),
+        board("games", "Most Games", "Games played in a Kentucky season.", "G", all, "games", (row) => fmtNum(row.games, 0), (row) => `${fmtNum(row.mpg, 1)} MPG`),
+        board("starts", "Most Starts", "Starts in a Kentucky season.", "GS", all, "starts", (row) => fmtNum(row.starts, 0), (row) => `${row.games} G`),
+        board("rating", "Best College Player Rating", "BBN Stats composite rating for a player season.", "Rating", all, "rating", (row) => fmtNum(row.rating, 1), (row) => `${fmtNum(row.ppg, 1)} PPG`),
+        board("porpag", "Best PORPAG", "Points over replacement per adjusted game.", "PORPAG", porpagRows, "porpag", (row) => fmtNum(row.porpag, 1), (row) => `${fmtNum(row.rating, 1)} rating`),
+        board("win-shares", "Most Win Shares", "Total win shares in a Kentucky season.", "WS", winShareRows, "winShares", (row) => fmtNum(row.winShares, 1), (row) => `${fmtNum(row.wsPer40, 3)} WS/40`),
+        board("ws40", "Best WS/40", "Win shares per 40 minutes.", "WS/40", wsPer40Rows, "wsPer40", (row) => fmtNum(row.wsPer40, 3), (row) => `${fmtNum(row.winShares, 1)} WS`),
+        board("net", "Best Net Rating", "On-court adjusted point margin per 100 possessions.", "Net", all, "netRating", (row) => fmtNum(row.netRating, 1), (row) => `${fmtNum(row.offensiveRating, 1)} OffRtg`),
+        board("offense", "Best Offensive Rating", "Offensive rating by player season.", "OffRtg", all, "offensiveRating", (row) => fmtNum(row.offensiveRating, 1), (row) => `${fmtNum(row.netRating, 1)} Net`),
+        board("defense", "Best Defensive Rating", "Lowest defensive rating by player season.", "DefRtg", defensiveRows, "defensiveRating", (row) => fmtNum(row.defensiveRating, 1), (row) => `${fmtNum(row.netRating, 1)} Net`, true),
+        board("usage", "Highest Usage", "Usage rate by player season.", "Usage", usageRows, "usage", (row) => fmtPct(row.usage), (row) => `${fmtNum(row.ppg, 1)} PPG`),
+        board("ast-to", "Best AST/TO", "Assist-to-turnover ratio by player season.", "AST/TO", astToRows, "assistsTurnoverRatio", (row) => fmtNum(row.assistsTurnoverRatio, 2), (row) => `${fmtNum(row.apg, 1)} APG`),
+        board("oreb", "Best OReb%", "Offensive rebounding percentage by player season.", "OReb%", orebRows, "offensiveReboundPct", (row) => fmtPct(row.offensiveReboundPct), (row) => `${fmtNum(row.rpg, 1)} RPG`),
+        board("ts", "Best TS%", "True shooting percentage by player season.", "TS%", trueShootingRows, "trueShooting", (row) => fmtPct(row.trueShooting), (row) => `${fmtNum(row.fgaPerGame, 1)} FGA/G`),
+        board("efg", "Best eFG%", "Effective field goal percentage by player season.", "eFG%", fieldGoalRows, "effectiveFieldGoal", (row) => fmtPct(row.effectiveFieldGoal), shotDetail("fieldGoalsMade", "fieldGoalAttempts")),
+        board("fgpct", "Best FG%", "Field goal percentage by player season.", "FG%", fieldGoalRows, "fieldGoalPct", (row) => fmtPct(row.fieldGoalPct), shotDetail("fieldGoalsMade", "fieldGoalAttempts")),
+        board("twopct", "Best 2P%", "Two-point field goal percentage by player season.", "2P%", twoPointRows, "twoPointPct", (row) => fmtPct(row.twoPointPct), shotDetail("twoPointMade", "twoPointAttempts")),
+        board("threepct", "Best 3P%", "Three-point field goal percentage by player season.", "3P%", threePointRows, "threePointPct", (row) => fmtPct(row.threePointPct), shotDetail("threePointMade", "threeAttempts")),
+        board("ftpct", "Best FT%", "Free throw percentage by player season.", "FT%", freeThrowRows, "freeThrowPct", (row) => fmtPct(row.freeThrowPct), shotDetail("freeThrowsMade", "freeThrowAttempts")),
+        board("fgm", "Most Field Goals", "Made field goals in a Kentucky season.", "FGM", all, "fieldGoalsMade", (row) => fmtNum(row.fieldGoalsMade, 0), shotDetail("fieldGoalsMade", "fieldGoalAttempts")),
+        board("threepm", "Most 3-Pointers", "Made threes in a Kentucky season.", "3PM", all, "threePointMade", (row) => fmtNum(row.threePointMade, 0), shotDetail("threePointMade", "threeAttempts")),
+        board("ftm", "Most Free Throws", "Made free throws in a Kentucky season.", "FTM", all, "freeThrowsMade", (row) => fmtNum(row.freeThrowsMade, 0), shotDetail("freeThrowsMade", "freeThrowAttempts")),
+        board("shooters", "Most Efficient Shooters", "Blend of TS%, eFG%, perimeter accuracy, free throws, and volume.", "Score", all, "efficiencyScore", (row) => fmtNum(row.efficiencyScore, 1), (row) => `${fmtPct(row.trueShooting)} TS`),
+        board("freshmen", "Best Freshman Seasons", "Freshman seasons ranked by the BBN Stats player rating.", "Fr.", freshmen, "rating", (row) => fmtNum(row.rating, 1), (row) => `${fmtNum(row.ppg, 1)} PPG`)
       ];
     }
 
     function renderSummary(rows) {
       const seasons = new Set(rows.map((row) => row.season));
       const players = new Set(rows.map((row) => `${row.athleteId || row.name}-${row.season}`));
-      const topRating = sortByMetric(rows.filter((row) => passesSample(row)), "rating")[0];
+      const topRating = sortByMetric(rows, "rating")[0];
 
       document.getElementById("leaderboard-summary").innerHTML = `
         <article class="card">
@@ -481,7 +499,7 @@
         <article class="card">
           <div class="metric-label">Player Seasons</div>
           <div class="metric-value">${escapeHtml(players.size)}</div>
-          <div class="hero-support">${escapeHtml(SAMPLE_RULES[sampleMode].label)} sample rules</div>
+          <div class="hero-support">All loaded Kentucky players</div>
         </article>
         <article class="card">
           <div class="metric-label">Top Rated Season</div>
@@ -537,7 +555,7 @@
       `).join("");
 
       document.getElementById("leaderboard-progress").innerHTML = `
-        Showing <strong>${escapeHtml(SAMPLE_RULES[sampleMode].label)}</strong> boards across <strong>${escapeHtml(String(leaderboardRows.length))}</strong> loaded player seasons.
+        Showing <strong>all players</strong> across <strong>${escapeHtml(String(leaderboardRows.length))}</strong> loaded player seasons.
       `;
     }
 
@@ -563,17 +581,6 @@
 
     async function loadLeaderboardsPage() {
       getHelpers().printer.bindExportButtons?.({ pageName: "leaderboards", elementId: "main-content" });
-
-      document.querySelectorAll("[data-leaderboard-sample]").forEach((button) => {
-        button.addEventListener("click", () => {
-          sampleMode = button.dataset.leaderboardSample;
-          document.querySelectorAll("[data-leaderboard-sample]").forEach((nextButton) => {
-            const active = nextButton.dataset.leaderboardSample === sampleMode;
-            nextButton.className = `btn ${active ? "btn--secondary is-active" : "btn--ghost"}`;
-          });
-          renderLeaderboards();
-        });
-      });
 
       try {
         const loaded = [];

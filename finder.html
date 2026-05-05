@@ -207,6 +207,7 @@
                 <option value="So.">Sophomore</option>
                 <option value="Jr.">Junior</option>
                 <option value="Sr.">Senior</option>
+                <option value="Gr.">Graduate</option>
               </select>
             </div>
             <div class="finder-range">
@@ -302,12 +303,18 @@
   <script src="js/print.js"></script>
   <script>
     const TABLE_LIMIT = 300;
-    const CLASS_LABELS = ["Fr.", "So.", "Jr.", "Sr."];
     const seasonTypeCache = new Map();
+    const PLAYER_CLASS_OVERRIDES_BY_SEASON = {
+      2026: {
+        "Yaxel Lendeborg": "Sr."
+      }
+    };
     let allRows = [];
     let filteredRows = [];
     let currentSeasonType = "all";
     let currentSort = { key: "rating", asc: false };
+    let hasLoadedRows = false;
+    let isLoadingRows = false;
     const FILTER_IDS = ["filter-search", "filter-team", "filter-conference", "filter-position", "filter-class", "filter-min-mpg", "filter-max-mpg", "filter-min-usage", "filter-max-usage", "filter-min-ts", "filter-max-ts", "filter-min-rating", "filter-max-rating", "filter-min-three", "filter-max-three", "filter-min-height", "filter-max-height"];
     const COLUMNS = [
       { key: "name", label: "Player" },
@@ -373,10 +380,37 @@
       return value || "--";
     }
 
-    function classFromRoster(player, season) {
-      if (!player?.startSeason) return "";
-      const years = Math.max(0, Number(season) - Number(player.startSeason));
-      return CLASS_LABELS[Math.min(years, CLASS_LABELS.length - 1)] || "Fr.";
+    function classFromCareer(row, roster, season, careerStartMap) {
+      const { utils } = getHelpers();
+      const override = Object.entries(PLAYER_CLASS_OVERRIDES_BY_SEASON[season] || {})
+        .find(([name]) => normalizeText(name) === normalizeText(row?.name))?.[1];
+
+      if (override) {
+        return override;
+      }
+
+      const kentuckyClass = typeof utils.isKentuckyTeam === "function" && utils.isKentuckyTeam(row?.team)
+        && typeof utils.getPlayerClassYear === "function"
+        ? utils.getPlayerClassYear({ ...roster, name: row?.name }, season)
+        : "";
+
+      if (kentuckyClass) {
+        return kentuckyClass;
+      }
+
+      const explicitClass = typeof utils.normalizeClassYearLabel === "function"
+        ? utils.normalizeClassYearLabel(row?.classYear || row?.class || row?.year || roster?.classYear || roster?.class || roster?.year)
+        : "";
+
+      if (explicitClass) {
+        return explicitClass;
+      }
+
+      const startSeason = careerStartMap.ids.get(Number(row?.athleteId))
+        || careerStartMap.names.get(normalizeText(row?.name));
+      const years = Math.max(0, Number(season) - Number(startSeason || season));
+      const labels = ["Fr.", "So.", "Jr.", "Sr.", "Gr."];
+      return labels[Math.min(years, labels.length - 1)] || "Fr.";
     }
 
     function getSeasonTypeParam(mode) {
@@ -398,7 +432,32 @@
       return map;
     }
 
-    function normalizeRows(statsResponse, rosterResponse, season) {
+    function buildCareerStartMap(currentRows, historyResponses) {
+      const ids = new Map();
+      const names = new Map();
+      const remember = (row) => {
+        const rowSeason = Number(row?.season);
+
+        if (!Number.isFinite(rowSeason)) return;
+
+        const athleteId = Number(row?.athleteId);
+        if (Number.isFinite(athleteId)) {
+          ids.set(athleteId, Math.min(ids.get(athleteId) || rowSeason, rowSeason));
+        }
+
+        const name = normalizeText(row?.name);
+        if (name) {
+          names.set(name, Math.min(names.get(name) || rowSeason, rowSeason));
+        }
+      };
+
+      safeArray(currentRows).forEach(remember);
+      historyResponses.forEach((response) => safeArray(response).forEach(remember));
+
+      return { ids, names };
+    }
+
+    function normalizeRows(statsResponse, rosterResponse, season, careerStartMap) {
       const { utils } = getHelpers();
       const rosterMap = buildRosterMap(rosterResponse);
       return safeArray(statsResponse).map((row) => {
@@ -411,7 +470,7 @@
           roster,
           rating,
           positionLabel: formatPosition(row.position || roster.position),
-          classYear: classFromRoster(roster, season),
+          classYear: classFromCareer(row, roster, season, careerStartMap),
           height: optionalNum(roster.height),
           mpg: perGame(row.minutes, games),
           ppg: perGame(row.points, games),
@@ -421,7 +480,7 @@
           trueShootingValue: pctValue(row.trueShootingPct),
           threePctValue: pctValue(row.threePointFieldGoals?.pct)
         };
-      }).filter((row) => row.athleteId || row.name);
+      }).filter((row) => (row.athleteId || row.name) && normalizeText(row.conference));
     }
 
     function readFilters() {
@@ -577,9 +636,24 @@
     }
 
     function applyFilters() {
+      if (!hasLoadedRows) {
+        renderReadyState();
+        return;
+      }
+
       const filters = readFilters();
       filteredRows = allRows.filter((row) => passesFilters(row, filters));
       renderRows();
+    }
+
+    function renderReadyState() {
+      document.getElementById("finder-title").textContent = seasonLabel(getHelpers().utils.getSeason?.() || 2026);
+      document.getElementById("summary-matches").textContent = "--";
+      document.getElementById("summary-rating").textContent = "--";
+      document.getElementById("summary-ts").textContent = "--";
+      document.getElementById("summary-mpg").textContent = "--";
+      document.getElementById("result-note").textContent = "Choose or type a filter to load matching player data.";
+      document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Set a filter to start exploring players.</div></td></tr>`;
     }
 
     function updateOptions() {
@@ -597,29 +671,55 @@
     }
 
     async function loadRows(mode = currentSeasonType) {
+      if (isLoadingRows) return;
+
       const { api, utils } = getHelpers();
       const season = typeof utils.getSeason === "function" ? utils.getSeason() : 2026;
       const cacheKey = `${season}:${mode}`;
+      isLoadingRows = true;
       document.getElementById("finder-title").textContent = seasonLabel(season);
       document.getElementById("result-note").textContent = "Loading player database.";
       document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Loading players...</div></td></tr>`;
       if (seasonTypeCache.has(cacheKey)) {
         allRows = seasonTypeCache.get(cacheKey);
+        hasLoadedRows = true;
+        isLoadingRows = false;
         updateOptions();
         applyFilters();
         return;
       }
-      const params = { season };
-      const seasonType = getSeasonTypeParam(mode);
-      if (seasonType) params.seasonType = seasonType;
-      const [statsResponse, rosterResponse] = await Promise.all([
-        api.apiFetch("/stats/player/season", params),
-        api.apiFetch("/teams/roster", { season })
-      ]);
-      allRows = normalizeRows(statsResponse, rosterResponse, season);
-      seasonTypeCache.set(cacheKey, allRows);
-      updateOptions();
-      applyFilters();
+      try {
+        const params = { season };
+        const seasonType = getSeasonTypeParam(mode);
+        if (seasonType) params.seasonType = seasonType;
+        const historySeasons = [1, 2, 3, 4]
+          .map((offset) => season - offset)
+          .filter((year) => year >= 2000);
+        const historyRequests = historySeasons.map((year) => {
+          return api.apiFetch("/stats/player/season", { season: year }).catch(() => []);
+        });
+        const [statsResponse, rosterResponse, ...historyResponses] = await Promise.all([
+          api.apiFetch("/stats/player/season", params),
+          api.apiFetch("/teams/roster", { season }),
+          ...historyRequests
+        ]);
+        const careerStartMap = buildCareerStartMap(statsResponse, historyResponses);
+        allRows = normalizeRows(statsResponse, rosterResponse, season, careerStartMap);
+        seasonTypeCache.set(cacheKey, allRows);
+        hasLoadedRows = true;
+        updateOptions();
+        applyFilters();
+      } finally {
+        isLoadingRows = false;
+      }
+    }
+
+    async function loadRowsFromInteraction() {
+      try {
+        await loadRows(currentSeasonType);
+      } catch (error) {
+        document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Unable to load players. ${escapeHtml(error?.message || "Please try again later.")}</div></td></tr>`;
+      }
     }
 
     function resetFilters() {
@@ -631,6 +731,11 @@
     }
 
     function exportCsv() {
+      if (!hasLoadedRows) {
+        renderReadyState();
+        return;
+      }
+
       const rows = sortRows(filteredRows);
       const header = COLUMNS.map((column) => `"${column.label}"`).join(",");
       const body = rows.map((row) => COLUMNS.map((column) => {
@@ -649,17 +754,38 @@
       const { printer } = getHelpers();
       printer.bindExportButtons?.({ pageName: "finder", elementId: "main-content" });
       renderHead();
+      renderReadyState();
       document.getElementById("finder-head").addEventListener("click", (event) => {
         const header = event.target.closest("th[data-sort]");
         if (!header) return;
+        if (!hasLoadedRows) {
+          renderReadyState();
+          return;
+        }
+
         const key = header.dataset.sort;
         currentSort = { key, asc: currentSort.key === key ? !currentSort.asc : ["name", "team", "conference", "position", "classYear"].includes(key) };
         updateSortIndicators();
         renderRows();
       });
       FILTER_IDS.forEach((id) => {
-        document.getElementById(id)?.addEventListener("input", applyFilters);
-        document.getElementById(id)?.addEventListener("change", applyFilters);
+        const input = document.getElementById(id);
+        input?.addEventListener("input", async () => {
+          if (!hasLoadedRows) {
+            await loadRowsFromInteraction();
+            return;
+          }
+
+          applyFilters();
+        });
+        input?.addEventListener("change", async () => {
+          if (!hasLoadedRows) {
+            await loadRowsFromInteraction();
+            return;
+          }
+
+          applyFilters();
+        });
       });
       document.querySelectorAll("[data-season-type]").forEach((button) => {
         button.addEventListener("click", async () => {
@@ -674,11 +800,6 @@
       });
       document.getElementById("reset-filters").addEventListener("click", resetFilters);
       document.getElementById("export-csv").addEventListener("click", exportCsv);
-      try {
-        await loadRows("all");
-      } catch (error) {
-        document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Unable to load players. ${escapeHtml(error?.message || "Please try again later.")}</div></td></tr>`;
-      }
     }
 
     document.addEventListener("DOMContentLoaded", initFinder);

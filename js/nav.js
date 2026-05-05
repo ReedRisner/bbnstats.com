@@ -115,7 +115,7 @@ function renderNav() {
   const selectedSeason = getCurrentSeason();
 
   return `
-    <nav class="site-nav" aria-label="Primary">
+    <nav class="site-nav is-collapsed" aria-label="Primary">
       <div class="site-nav__inner">
         <a class="site-brand" href="index.html" aria-label="BBN Stats home">
           <span class="site-brand__logo" aria-hidden="true">
@@ -126,7 +126,10 @@ function renderNav() {
             <span class="site-brand__title">Kentucky Basketball</span>
           </span>
         </a>
-        <div class="site-nav__menu">
+        <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav-menu">
+          Menu
+        </button>
+        <div class="site-nav__menu" id="site-nav-menu">
           <div class="site-nav__links">
             ${createNavLinks(activePath)}
           </div>
@@ -175,8 +178,24 @@ function injectNav(targetSelector = "body") {
   }
 
   bindNavSearch();
+  bindNavToggle();
 
   return seasonSelect;
+}
+
+function bindNavToggle() {
+  const nav = document.querySelector(".site-nav");
+  const toggle = document.querySelector(".site-nav__toggle");
+
+  if (!nav || !toggle) {
+    return;
+  }
+
+  toggle.addEventListener("click", () => {
+    const isExpanded = nav.classList.toggle("is-collapsed") === false;
+    toggle.setAttribute("aria-expanded", String(isExpanded));
+    toggle.textContent = isExpanded ? "Close" : "Menu";
+  });
 }
 
 function escapeHtml(value) {
