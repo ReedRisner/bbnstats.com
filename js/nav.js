@@ -3,12 +3,14 @@ const NAV_LINKS = [
   { href: "players.html", label: "Players" },
   { href: "schedule.html", label: "Schedule" },
   { href: "stats.html", label: "Player Stats" },
+  { href: "leaderboards.html", label: "Leaderboards" },
+  { href: "finder.html", label: "Player Finder" },
   { href: "team-stats.html", label: "Team Stats" },
-  { href: "compare.html", label: "Compare" },
+  { href: "team-compare.html", label: "Team Compare" },
+  { href: "compare.html", label: "Player Compare" },
   { href: "lineups.html", label: "Lineups" },
   { href: "rankings.html", label: "Rankings" },
-  { href: "ratings.html", label: "Ratings" },
-  { href: "https://bleedbluenetwork.com", label: "News", external: true }
+  { href: "ratings.html", label: "Ratings" }
 ];
 
 const SEASON_OPTIONS = Array.from({ length: 2027 - 2000 + 1 }, (_, index) => 2027 - index);

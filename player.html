@@ -25,8 +25,6 @@
   <link rel="stylesheet" href="css/print.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
     .player-hero {
       position: relative;
@@ -76,6 +74,25 @@
       font-family: var(--font-display);
       font-size: clamp(4rem, 9vw, 7rem);
       line-height: 0.88;
+      text-align: right;
+    }
+
+    .player-header-card {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: end;
+    }
+
+    .player-header-stat {
+      min-width: 0;
+    }
+
+    .player-header-rating {
+      color: var(--uk-light-blue);
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 6vw, 5.2rem);
+      line-height: 0.9;
       text-align: right;
     }
 
@@ -358,6 +375,45 @@
         </div>
       </div>
     </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Past Seasons</h2>
+          <p class="section-copy">Previous college season lines for this player, including earlier stops when the API can match them.</p>
+        </div>
+      </div>
+      <div id="past-seasons-shell" class="table-shell">
+        <div class="table-toolbar">
+          <div class="table-note">Season totals with per-game production and efficiency.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="past-seasons-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Team</th>
+                <th>G</th>
+                <th>GS</th>
+                <th>MPG</th>
+                <th>PPG</th>
+                <th>RPG</th>
+                <th>APG</th>
+                <th>FG</th>
+                <th>3P</th>
+                <th>FT</th>
+                <th>TS%</th>
+                <th>Usage</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody id="past-seasons-body">
+              <tr><td colspan="14"><div class="loading-state">Loading past seasons...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script src="js/api.js"></script>
@@ -368,6 +424,8 @@
   <script src="js/print.js"></script>
   <script>
     const DEFAULT_TEAM_NAME = "Kentucky";
+    const HISTORY_LOOKBACK_SEASONS = 6;
+    const HISTORY_MIN_SEASON = 2000;
     let gameLogRows = [];
     let gameLogSort = { key: "date", asc: true };
     let trendChartMode = "points";
@@ -507,6 +565,77 @@
       return safeArray(shootingResponse).find((player) => Number(player.athleteId) === Number(athleteId)) || null;
     }
 
+    function normalizePlayerNameForMatch(name) {
+      if (typeof getHelpers().utils.normalizePlayerName === "function") {
+        return getHelpers().utils.normalizePlayerName(name);
+      }
+
+      return String(name || "")
+        .normalize("NFKD")
+        .replace(/[^\w\s.'-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function getHistorySeasonRange(currentSeason) {
+      const startSeason = Math.max(HISTORY_MIN_SEASON, currentSeason - HISTORY_LOOKBACK_SEASONS);
+      const seasons = [];
+
+      for (let nextSeason = currentSeason - 1; nextSeason >= startSeason; nextSeason -= 1) {
+        seasons.push(nextSeason);
+      }
+
+      return seasons;
+    }
+
+    function findPastSeasonStatLine(statsResponse, currentStatLine, rosterPlayer) {
+      const rows = safeArray(statsResponse);
+      const athleteId = Number(currentStatLine?.athleteId || rosterPlayer?.id);
+      const athleteSourceId = String(currentStatLine?.athleteSourceId || rosterPlayer?.sourceId || "").trim();
+      const playerName = normalizePlayerNameForMatch(currentStatLine?.name || rosterPlayer?.name);
+
+      return rows.find((row) => {
+        if (Number.isFinite(athleteId) && Number(row?.athleteId) === athleteId) {
+          return true;
+        }
+
+        if (athleteSourceId && String(row?.athleteSourceId || "").trim() === athleteSourceId) {
+          return true;
+        }
+
+        return false;
+      }) || rows.find((row) => normalizePlayerNameForMatch(row?.name) === playerName) || null;
+    }
+
+    async function loadPastSeasonRows(statLine, rosterPlayer, currentSeason) {
+      const { api } = getHelpers();
+      const seasons = getHistorySeasonRange(currentSeason);
+      const responses = await Promise.all(
+        seasons.map(async (historySeason) => {
+          try {
+            return {
+              season: historySeason,
+              statsResponse: await api.apiFetch("/stats/player/season", { season: historySeason })
+            };
+          } catch (error) {
+            return {
+              season: historySeason,
+              statsResponse: []
+            };
+          }
+        })
+      );
+
+      return responses
+        .map(({ season: historySeason, statsResponse }) => {
+          const row = findPastSeasonStatLine(statsResponse, statLine, rosterPlayer);
+          return row ? { ...row, season: row.season || historySeason } : null;
+        })
+        .filter(Boolean)
+        .sort((left, right) => Number(right.season || 0) - Number(left.season || 0));
+    }
+
     function normalizeGameLog(gamesPlayersResponse, athleteId, athleteSourceId, athleteName) {
       return safeArray(gamesPlayersResponse)
         .map((game) => {
@@ -616,6 +745,9 @@
         ? utils.getPlayerImageCandidates(rosterPlayer?.id || statLine?.athleteId)
         : [];
       const fallback = utils.getFallbackImage ? utils.getFallbackImage("player") : "assets/images/players/placeholder.svg";
+      const collegePlayerRating = utils.calculateCollegePlayerRating
+        ? utils.calculateCollegePlayerRating(statLine)
+        : 0;
       const visualMarkup = shouldUseImage
         ? `
           <img
@@ -646,9 +778,15 @@
               <span>${escapeHtml(hometownLabel(rosterPlayer))}</span>
             </div>
           </div>
-          <div class="card">
-            <div class="metric-label">Jersey</div>
-            <div class="player-header-number">${escapeHtml(rosterPlayer?.jersey || "--")}</div>
+          <div class="card player-header-card">
+            <div class="player-header-stat">
+              <div class="metric-label">Jersey</div>
+              <div class="player-header-number">${escapeHtml(rosterPlayer?.jersey || "--")}</div>
+            </div>
+            <div class="player-header-stat">
+              <div class="metric-label">Rating</div>
+              <div class="player-header-rating">${escapeHtml(getHelpers().utils.fmtNum(collegePlayerRating, 1))}</div>
+            </div>
           </div>
         </div>
       `;
@@ -775,7 +913,7 @@
           </div>
           <div class="shot-chart">
             <div class="shot-chart__surface">
-              <canvas id="player-shot-chart" width="640" height="580" aria-label="Player shot chart"></canvas>
+              <canvas id="player-shot-chart" width="500" height="470" aria-label="Player shot chart"></canvas>
             </div>
           </div>
           <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
@@ -1067,6 +1205,44 @@
       });
     }
 
+    function renderPastSeasonsTable(rows) {
+      const body = document.getElementById("past-seasons-body");
+
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="14">${createErrorState("No past seasons found", "No earlier season lines were returned for this player.")}</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = rows.map((row) => {
+        const games = Number(row.games || 0);
+        const starts = Number(row.starts || row.gamesStarted || 0);
+        const rating = getHelpers().utils.calculateCollegePlayerRating
+          ? getHelpers().utils.calculateCollegePlayerRating(row)
+          : 0;
+
+        return `
+          <tr>
+            <td class="cell-strong">
+              <a class="cell-link" href="player.html?id=${encodeURIComponent(row.athleteId)}&season=${encodeURIComponent(row.season)}">${escapeHtml(row.seasonLabel || seasonLabel(row.season))}</a>
+            </td>
+            <td>${escapeHtml(row.team || "--")}</td>
+            <td>${escapeHtml(games)}</td>
+            <td>${escapeHtml(starts)}</td>
+            <td>${escapeHtml(getPerGame(row.minutes, games))}</td>
+            <td>${escapeHtml(getPerGame(row.points, games))}</td>
+            <td>${escapeHtml(getPerGame(row.rebounds?.total, games))}</td>
+            <td>${escapeHtml(getPerGame(row.assists, games))}</td>
+            <td>${escapeHtml(formatPerGameShooting(row.fieldGoals, games))}</td>
+            <td>${escapeHtml(formatPerGameShooting(row.threePointFieldGoals, games))}</td>
+            <td>${escapeHtml(formatPerGameShooting(row.freeThrows, games))}</td>
+            <td>${escapeHtml(getHelpers().utils.fmtPct(row.trueShootingPct))}</td>
+            <td>${escapeHtml(`${getHelpers().utils.fmtNum(row.usage, 1)}%`)}</td>
+            <td>${escapeHtml(getHelpers().utils.fmtNum(rating, 1))}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
     function getSortValue(row, key) {
       if (key === "date") return new Date(row.startDate).getTime();
       if (["opponent", "result", "fieldGoals", "threePointFieldGoals", "freeThrows"].includes(key)) return row[key] || "";
@@ -1120,6 +1296,7 @@
       document.getElementById("trend-section").innerHTML = createErrorState("Missing trend chart", message);
       document.getElementById("radar-section").innerHTML = createErrorState("Missing radar chart", message);
       document.getElementById("game-log-body").innerHTML = `<tr><td colspan="20">${createErrorState("Missing game log", message)}</td></tr>`;
+      document.getElementById("past-seasons-body").innerHTML = `<tr><td colspan="14">${createErrorState("Missing past seasons", message)}</td></tr>`;
     }
 
     async function loadPlayerPage() {
@@ -1163,12 +1340,17 @@
 
         const rosterPlayer = findRosterPlayer(rosterResponse, athleteId);
         const shootingLine = findPlayerShooting(shootingResponse, athleteId);
+        loadPastSeasonRows(statLine || {}, rosterPlayer || {}, season)
+          .then(renderPastSeasonsTable)
+          .catch((error) => {
+            document.getElementById("past-seasons-body").innerHTML = `<tr><td colspan="14">${createErrorState("Unable to load past seasons", error?.message || "Please try again later.")}</td></tr>`;
+          });
 
         renderHeader(rosterPlayer || {}, statLine || {}, season);
         renderSeasonBar(statLine || {});
         renderAdvancedGrid(statLine || {});
         renderShootingBreakdown(shootingLine);
-          renderShotChart(shotPlaysResponse, athleteId);
+        renderShotChart(shotPlaysResponse, athleteId);
 
         const gamesMap = new Map(safeArray(gamesResponse).map((game) => [Number(game.id), game]));
         const athleteSourceId = statLine?.athleteSourceId || rosterPlayer?.sourceId || null;

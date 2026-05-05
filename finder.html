@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-25CW7MFC29"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-25CW7MFC29');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Player Finder</title>
+  <meta name="description" content="Explore and filter college basketball players by season, team, position, minutes, usage, shooting, rating, height, and class.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <style>
+    .finder-hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .finder-layout {
+      display: grid;
+      grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .finder-panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 24%), var(--bg-card);
+      box-shadow: var(--shadow-sm);
+      padding: 18px;
+    }
+
+    .finder-panel__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .finder-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .finder-field,
+    .finder-range {
+      display: grid;
+      gap: 7px;
+    }
+
+    .finder-field label,
+    .finder-range__label {
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .finder-range__inputs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .finder-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .finder-summary__item {
+      padding: 14px;
+      border: 1px solid rgba(74, 144, 217, 0.15);
+      border-radius: var(--radius-xs);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .finder-summary__value {
+      font-family: var(--font-display);
+      font-size: 1.9rem;
+      line-height: 1;
+    }
+
+    .finder-table th:first-child,
+    .finder-table td:first-child {
+      min-width: 190px;
+    }
+
+    .finder-table th:nth-child(2),
+    .finder-table td:nth-child(2) {
+      min-width: 150px;
+    }
+
+    .finder-note {
+      color: var(--text-muted);
+      font-size: 0.84rem;
+    }
+
+    .finder-empty {
+      padding: 34px 20px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .finder-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .finder-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .finder-grid,
+      .finder-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .finder-range__inputs {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="finder">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div class="hero-banner">
+        <div class="finder-hero">
+          <div>
+            <span class="eyebrow">Player Finder</span>
+            <h1 class="hero-title" id="finder-title">Loading Players</h1>
+            <p class="lead">Filter every player by team, position, minutes, usage, shooting efficiency, rating, height, and class.</p>
+          </div>
+          <div class="button-group" aria-label="Season type filter">
+            <button class="btn btn--secondary is-active" type="button" data-season-type="all">All</button>
+            <button class="btn btn--ghost" type="button" data-season-type="regular">Regular</button>
+            <button class="btn btn--ghost" type="button" data-season-type="postseason">Postseason</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="finder-layout">
+        <aside class="finder-panel" aria-label="Player filters">
+          <div class="finder-panel__head">
+            <div class="section-title">Filters</div>
+            <button class="btn btn--ghost" type="button" id="reset-filters">Reset</button>
+          </div>
+
+          <div class="finder-grid">
+            <div class="finder-field">
+              <label for="filter-search">Player</label>
+              <input class="input" id="filter-search" type="search" placeholder="Search name" autocomplete="off">
+            </div>
+            <div class="finder-field">
+              <label for="filter-team">Team</label>
+              <input class="input" id="filter-team" type="search" placeholder="Any team" list="team-options" autocomplete="off">
+              <datalist id="team-options"></datalist>
+            </div>
+            <div class="finder-field">
+              <label for="filter-conference">Conference</label>
+              <input class="input" id="filter-conference" type="search" placeholder="Any conf." list="conference-options" autocomplete="off">
+              <datalist id="conference-options"></datalist>
+            </div>
+            <div class="finder-field">
+              <label for="filter-position">Position</label>
+              <select class="select" id="filter-position">
+                <option value="">Any</option>
+                <option value="G">Guard</option>
+                <option value="F">Forward</option>
+                <option value="C">Center</option>
+              </select>
+            </div>
+            <div class="finder-field">
+              <label for="filter-class">Class</label>
+              <select class="select" id="filter-class">
+                <option value="">Any</option>
+                <option value="Fr.">Freshman</option>
+                <option value="So.">Sophomore</option>
+                <option value="Jr.">Junior</option>
+                <option value="Sr.">Senior</option>
+              </select>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">Minutes/G</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-mpg" type="number" min="0" step="0.5" placeholder="Min">
+                <input class="input" id="filter-max-mpg" type="number" min="0" step="0.5" placeholder="Max">
+              </div>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">Usage%</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-usage" type="number" min="0" step="0.5" placeholder="Min">
+                <input class="input" id="filter-max-usage" type="number" min="0" step="0.5" placeholder="Max">
+              </div>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">TS%</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-ts" type="number" min="0" step="0.5" placeholder="Min">
+                <input class="input" id="filter-max-ts" type="number" min="0" step="0.5" placeholder="Max">
+              </div>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">Rating</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-rating" type="number" min="0" step="0.5" placeholder="Min">
+                <input class="input" id="filter-max-rating" type="number" min="0" step="0.5" placeholder="Max">
+              </div>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">3P%</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-three" type="number" min="0" step="0.5" placeholder="Min">
+                <input class="input" id="filter-max-three" type="number" min="0" step="0.5" placeholder="Max">
+              </div>
+            </div>
+            <div class="finder-range">
+              <div class="finder-range__label">Height</div>
+              <div class="finder-range__inputs">
+                <input class="input" id="filter-min-height" type="number" min="0" step="1" placeholder="Min in.">
+                <input class="input" id="filter-max-height" type="number" min="0" step="1" placeholder="Max in.">
+              </div>
+            </div>
+            <button class="btn btn--secondary" type="button" id="export-csv">Export CSV</button>
+          </div>
+        </aside>
+
+        <div>
+          <div class="finder-summary" aria-live="polite">
+            <div class="finder-summary__item">
+              <div class="metric-label">Matches</div>
+              <div class="finder-summary__value" id="summary-matches">--</div>
+            </div>
+            <div class="finder-summary__item">
+              <div class="metric-label">Avg Rating</div>
+              <div class="finder-summary__value" id="summary-rating">--</div>
+            </div>
+            <div class="finder-summary__item">
+              <div class="metric-label">Avg TS%</div>
+              <div class="finder-summary__value" id="summary-ts">--</div>
+            </div>
+            <div class="finder-summary__item">
+              <div class="metric-label">Avg MPG</div>
+              <div class="finder-summary__value" id="summary-mpg">--</div>
+            </div>
+          </div>
+
+          <div class="table-shell">
+            <div class="table-toolbar">
+              <div>
+                <div class="section-title">Query Results</div>
+                <div class="finder-note" id="result-note">Loading player database.</div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table sortable-table finder-table" id="finder-table">
+                <thead id="finder-head"></thead>
+                <tbody id="finder-body">
+                  <tr><td colspan="14"><div class="finder-empty">Loading players...</div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TABLE_LIMIT = 300;
+    const CLASS_LABELS = ["Fr.", "So.", "Jr.", "Sr."];
+    const seasonTypeCache = new Map();
+    let allRows = [];
+    let filteredRows = [];
+    let currentSeasonType = "all";
+    let currentSort = { key: "rating", asc: false };
+    const FILTER_IDS = ["filter-search", "filter-team", "filter-conference", "filter-position", "filter-class", "filter-min-mpg", "filter-max-mpg", "filter-min-usage", "filter-max-usage", "filter-min-ts", "filter-max-ts", "filter-min-rating", "filter-max-rating", "filter-min-three", "filter-max-three", "filter-min-height", "filter-max-height"];
+    const COLUMNS = [
+      { key: "name", label: "Player" },
+      { key: "team", label: "Team" },
+      { key: "conference", label: "Conf." },
+      { key: "position", label: "Pos" },
+      { key: "classYear", label: "Class" },
+      { key: "height", label: "Ht" },
+      { key: "mpg", label: "MPG" },
+      { key: "usage", label: "Usage%" },
+      { key: "trueShootingPct", label: "TS%" },
+      { key: "threePct", label: "3P%" },
+      { key: "rating", label: "Rating" },
+      { key: "ppg", label: "PPG" },
+      { key: "rpg", label: "RPG" },
+      { key: "apg", label: "APG" }
+    ];
+
+    function getHelpers() {
+      return { api: window.BBNStatsApi || {}, utils: window.BBNStatsUtils || {}, printer: window.BBNStatsPrint || {} };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function num(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function optionalNum(value) {
+      if (value === "") return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function perGame(total, games) {
+      const gameCount = num(games);
+      return gameCount ? num(total) / gameCount : 0;
+    }
+
+    function pctValue(value) {
+      const parsed = num(value);
+      return parsed > 1 ? parsed : parsed * 100;
+    }
+
+    function formatPosition(position) {
+      const value = String(position || "");
+      if (value.toLowerCase().startsWith("guard")) return "G";
+      if (value.toLowerCase().startsWith("forward")) return "F";
+      if (value.toLowerCase().startsWith("center")) return "C";
+      return value || "--";
+    }
+
+    function classFromRoster(player, season) {
+      if (!player?.startSeason) return "";
+      const years = Math.max(0, Number(season) - Number(player.startSeason));
+      return CLASS_LABELS[Math.min(years, CLASS_LABELS.length - 1)] || "Fr.";
+    }
+
+    function getSeasonTypeParam(mode) {
+      return mode === "regular" || mode === "postseason" ? mode : undefined;
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)} Player Finder`;
+    }
+
+    function buildRosterMap(rosterResponse) {
+      const map = new Map();
+      safeArray(rosterResponse).forEach((teamRoster) => {
+        safeArray(teamRoster?.players).forEach((player) => {
+          map.set(`${Number(player.id)}|${normalizeText(teamRoster?.team)}`, { ...player, rosterTeam: teamRoster?.team });
+          map.set(`${normalizeText(player.name)}|${normalizeText(teamRoster?.team)}`, { ...player, rosterTeam: teamRoster?.team });
+        });
+      });
+      return map;
+    }
+
+    function normalizeRows(statsResponse, rosterResponse, season) {
+      const { utils } = getHelpers();
+      const rosterMap = buildRosterMap(rosterResponse);
+      return safeArray(statsResponse).map((row) => {
+        const roster = rosterMap.get(`${Number(row.athleteId)}|${normalizeText(row.team)}`) || rosterMap.get(`${normalizeText(row.name)}|${normalizeText(row.team)}`) || {};
+        const games = num(row.games);
+        const rating = typeof utils.calculateCollegePlayerRating === "function" ? utils.calculateCollegePlayerRating(row) : 0;
+        return {
+          ...row,
+          games,
+          roster,
+          rating,
+          positionLabel: formatPosition(row.position || roster.position),
+          classYear: classFromRoster(roster, season),
+          height: optionalNum(roster.height),
+          mpg: perGame(row.minutes, games),
+          ppg: perGame(row.points, games),
+          rpg: perGame(row.rebounds?.total, games),
+          apg: perGame(row.assists, games),
+          usageValue: pctValue(row.usage),
+          trueShootingValue: pctValue(row.trueShootingPct),
+          threePctValue: pctValue(row.threePointFieldGoals?.pct)
+        };
+      }).filter((row) => row.athleteId || row.name);
+    }
+
+    function readFilters() {
+      const value = (id) => document.getElementById(id)?.value || "";
+      return {
+        search: normalizeText(value("filter-search")),
+        team: normalizeText(value("filter-team")),
+        conference: normalizeText(value("filter-conference")),
+        position: value("filter-position"),
+        classYear: value("filter-class"),
+        minMpg: optionalNum(value("filter-min-mpg")),
+        maxMpg: optionalNum(value("filter-max-mpg")),
+        minUsage: optionalNum(value("filter-min-usage")),
+        maxUsage: optionalNum(value("filter-max-usage")),
+        minTs: optionalNum(value("filter-min-ts")),
+        maxTs: optionalNum(value("filter-max-ts")),
+        minRating: optionalNum(value("filter-min-rating")),
+        maxRating: optionalNum(value("filter-max-rating")),
+        minThree: optionalNum(value("filter-min-three")),
+        maxThree: optionalNum(value("filter-max-three")),
+        minHeight: optionalNum(value("filter-min-height")),
+        maxHeight: optionalNum(value("filter-max-height"))
+      };
+    }
+
+    function inRange(value, min, max) {
+      if (min !== null && value < min) return false;
+      if (max !== null && value > max) return false;
+      return true;
+    }
+
+    function passesFilters(row, filters) {
+      if (filters.search && !normalizeText(row.name).includes(filters.search)) return false;
+      if (filters.team && !normalizeText(row.team).includes(filters.team)) return false;
+      if (filters.conference && !normalizeText(row.conference).includes(filters.conference)) return false;
+      if (filters.position && row.positionLabel !== filters.position) return false;
+      if (filters.classYear && row.classYear !== filters.classYear) return false;
+      if (!inRange(row.mpg, filters.minMpg, filters.maxMpg)) return false;
+      if (!inRange(row.usageValue, filters.minUsage, filters.maxUsage)) return false;
+      if (!inRange(row.trueShootingValue, filters.minTs, filters.maxTs)) return false;
+      if (!inRange(row.rating, filters.minRating, filters.maxRating)) return false;
+      if (!inRange(row.threePctValue, filters.minThree, filters.maxThree)) return false;
+      if ((filters.minHeight !== null || filters.maxHeight !== null) && row.height === null) return false;
+      return inRange(row.height ?? 0, filters.minHeight, filters.maxHeight);
+    }
+
+    function sortValue(row, key) {
+      switch (key) {
+        case "name":
+        case "team":
+        case "conference":
+        case "classYear":
+          return String(row[key] || "");
+        case "position":
+          return row.positionLabel || "";
+        case "height":
+          return row.height || 0;
+        case "usage":
+          return row.usageValue;
+        case "trueShootingPct":
+          return row.trueShootingValue;
+        case "threePct":
+          return row.threePctValue;
+        default:
+          return Number(row[key] || 0);
+      }
+    }
+
+    function sortRows(rows) {
+      return rows.slice().sort((a, b) => {
+        const left = sortValue(a, currentSort.key);
+        const right = sortValue(b, currentSort.key);
+        if (typeof left === "string" || typeof right === "string") {
+          return currentSort.asc ? String(left).localeCompare(String(right)) : String(right).localeCompare(String(left));
+        }
+        return currentSort.asc ? left - right : right - left;
+      });
+    }
+
+    function formatValue(row, key) {
+      const { utils } = getHelpers();
+      const fmtNum = typeof utils.fmtNum === "function" ? utils.fmtNum : (value, digits = 1) => Number(value || 0).toFixed(digits);
+      const fmtPct = (value) => `${fmtNum(value, 1)}%`;
+      switch (key) {
+        case "name": {
+          if (!row.athleteId) return escapeHtml(row.name || "--");
+          const url = `player.html?id=${encodeURIComponent(row.athleteId)}&season=${encodeURIComponent(row.season)}${row.team ? `&team=${encodeURIComponent(row.team)}` : ""}`;
+          return `<a class="cell-link" href="${url}">${escapeHtml(row.name || "--")}</a>`;
+        }
+        case "team": return escapeHtml(row.team || "--");
+        case "conference": return escapeHtml(row.conference || "--");
+        case "position": return escapeHtml(row.positionLabel || "--");
+        case "classYear": return escapeHtml(row.classYear || "--");
+        case "height": return escapeHtml(row.height ? (utils.heightInches?.(row.height) || `${row.height} in`) : "--");
+        case "mpg":
+        case "ppg":
+        case "rpg":
+        case "apg": return escapeHtml(fmtNum(row[key], 1));
+        case "usage": return escapeHtml(fmtPct(row.usageValue));
+        case "trueShootingPct": return escapeHtml(fmtPct(row.trueShootingValue));
+        case "threePct": return escapeHtml(fmtPct(row.threePctValue));
+        case "rating": return escapeHtml(fmtNum(row.rating, 1));
+        default: return escapeHtml(row[key] ?? "--");
+      }
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll("#finder-head th[data-sort]").forEach((header) => {
+        if (header.dataset.sort === currentSort.key) {
+          header.dataset.asc = String(currentSort.asc);
+        } else {
+          header.removeAttribute("data-asc");
+        }
+      });
+    }
+
+    function renderHead() {
+      document.getElementById("finder-head").innerHTML = `<tr>${COLUMNS.map((column) => `<th data-sort="${column.key}">${escapeHtml(column.label)}</th>`).join("")}</tr>`;
+      updateSortIndicators();
+    }
+
+    function average(rows, key) {
+      const values = rows.map((row) => Number(row[key])).filter((value) => Number.isFinite(value));
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    }
+
+    function updateSummary(rows) {
+      const { utils } = getHelpers();
+      const fmtNum = typeof utils.fmtNum === "function" ? utils.fmtNum : (value, digits = 1) => Number(value || 0).toFixed(digits);
+      document.getElementById("summary-matches").textContent = String(rows.length);
+      document.getElementById("summary-rating").textContent = fmtNum(average(rows, "rating"), 1);
+      document.getElementById("summary-ts").textContent = `${fmtNum(average(rows, "trueShootingValue"), 1)}%`;
+      document.getElementById("summary-mpg").textContent = fmtNum(average(rows, "mpg"), 1);
+    }
+
+    function renderRows() {
+      const sortedRows = sortRows(filteredRows);
+      const visibleRows = sortedRows.slice(0, TABLE_LIMIT);
+      const note = document.getElementById("result-note");
+      const body = document.getElementById("finder-body");
+      if (!visibleRows.length) {
+        body.innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">No players match these filters.</div></td></tr>`;
+        note.textContent = `${allRows.length.toLocaleString()} players loaded.`;
+        updateSummary(filteredRows);
+        return;
+      }
+      body.innerHTML = visibleRows.map((row) => `<tr>${COLUMNS.map((column) => {
+        const numeric = !["name", "team", "conference", "position", "classYear", "height"].includes(column.key);
+        return `<td class="${numeric ? "cell-number" : ""}">${formatValue(row, column.key)}</td>`;
+      }).join("")}</tr>`).join("");
+      note.textContent = `Showing ${visibleRows.length.toLocaleString()} of ${filteredRows.length.toLocaleString()} matches from ${allRows.length.toLocaleString()} players. Refine filters or export CSV for the full result set.`;
+      updateSummary(filteredRows);
+    }
+
+    function applyFilters() {
+      const filters = readFilters();
+      filteredRows = allRows.filter((row) => passesFilters(row, filters));
+      renderRows();
+    }
+
+    function updateOptions() {
+      const teams = [...new Set(allRows.map((row) => row.team).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      const conferences = [...new Set(allRows.map((row) => row.conference).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      document.getElementById("team-options").innerHTML = teams.map((team) => `<option value="${escapeHtml(team)}"></option>`).join("");
+      document.getElementById("conference-options").innerHTML = conferences.map((conference) => `<option value="${escapeHtml(conference)}"></option>`).join("");
+    }
+
+    function updateButtonState() {
+      document.querySelectorAll("[data-season-type]").forEach((button) => {
+        const active = button.dataset.seasonType === currentSeasonType;
+        button.className = `btn ${active ? "btn--secondary is-active" : "btn--ghost"}`;
+      });
+    }
+
+    async function loadRows(mode = currentSeasonType) {
+      const { api, utils } = getHelpers();
+      const season = typeof utils.getSeason === "function" ? utils.getSeason() : 2026;
+      const cacheKey = `${season}:${mode}`;
+      document.getElementById("finder-title").textContent = seasonLabel(season);
+      document.getElementById("result-note").textContent = "Loading player database.";
+      document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Loading players...</div></td></tr>`;
+      if (seasonTypeCache.has(cacheKey)) {
+        allRows = seasonTypeCache.get(cacheKey);
+        updateOptions();
+        applyFilters();
+        return;
+      }
+      const params = { season };
+      const seasonType = getSeasonTypeParam(mode);
+      if (seasonType) params.seasonType = seasonType;
+      const [statsResponse, rosterResponse] = await Promise.all([
+        api.apiFetch("/stats/player/season", params),
+        api.apiFetch("/teams/roster", { season })
+      ]);
+      allRows = normalizeRows(statsResponse, rosterResponse, season);
+      seasonTypeCache.set(cacheKey, allRows);
+      updateOptions();
+      applyFilters();
+    }
+
+    function resetFilters() {
+      FILTER_IDS.forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = "";
+      });
+      applyFilters();
+    }
+
+    function exportCsv() {
+      const rows = sortRows(filteredRows);
+      const header = COLUMNS.map((column) => `"${column.label}"`).join(",");
+      const body = rows.map((row) => COLUMNS.map((column) => {
+        const text = formatValue(row, column.key).replace(/<[^>]+>/g, "");
+        return `"${String(text).replace(/"/g, '""')}"`;
+      }).join(","));
+      const blob = new Blob([[header, ...body].join("\n")], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `bbnstats-player-finder-${getHelpers().utils.getSeason?.() || 2026}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    async function initFinder() {
+      const { printer } = getHelpers();
+      printer.bindExportButtons?.({ pageName: "finder", elementId: "main-content" });
+      renderHead();
+      document.getElementById("finder-head").addEventListener("click", (event) => {
+        const header = event.target.closest("th[data-sort]");
+        if (!header) return;
+        const key = header.dataset.sort;
+        currentSort = { key, asc: currentSort.key === key ? !currentSort.asc : ["name", "team", "conference", "position", "classYear"].includes(key) };
+        updateSortIndicators();
+        renderRows();
+      });
+      FILTER_IDS.forEach((id) => {
+        document.getElementById(id)?.addEventListener("input", applyFilters);
+        document.getElementById(id)?.addEventListener("change", applyFilters);
+      });
+      document.querySelectorAll("[data-season-type]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          currentSeasonType = button.dataset.seasonType;
+          updateButtonState();
+          try {
+            await loadRows(currentSeasonType);
+          } catch (error) {
+            document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Unable to load players. ${escapeHtml(error?.message || "Please try again later.")}</div></td></tr>`;
+          }
+        });
+      });
+      document.getElementById("reset-filters").addEventListener("click", resetFilters);
+      document.getElementById("export-csv").addEventListener("click", exportCsv);
+      try {
+        await loadRows("all");
+      } catch (error) {
+        document.getElementById("finder-body").innerHTML = `<tr><td colspan="${COLUMNS.length}"><div class="finder-empty">Unable to load players. ${escapeHtml(error?.message || "Please try again later.")}</div></td></tr>`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", initFinder);
+  </script>
+</body>
+</html>

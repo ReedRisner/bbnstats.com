@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-25CW7MFC29"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-25CW7MFC29');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Historical Kentucky Leaderboards</title>
+  <meta name="description" content="Historical Kentucky player leaderboards across loaded seasons, including PPG, TS%, player rating, net rating, shooting efficiency, and freshman seasons.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+
+  <style>
+    .leaderboard-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+    }
+
+    .leaderboard-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .leaderboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+
+    .leaderboard-card {
+      display: grid;
+      gap: 14px;
+      min-height: 100%;
+      min-width: 0;
+    }
+
+    .leaderboard-card__top {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .leaderboard-card__title {
+      margin: 0;
+      color: var(--text-primary);
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .leaderboard-card__copy {
+      margin: 4px 0 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .leaderboard-badge {
+      flex-shrink: 0;
+      border: 1px solid rgba(74, 144, 217, 0.28);
+      border-radius: 999px;
+      color: var(--uk-light-blue);
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1;
+      padding: 8px 10px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .leaderboard-list {
+      display: grid;
+      gap: 0;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid rgba(74, 144, 217, 0.12);
+      border-radius: var(--radius-sm);
+    }
+
+    .leaderboard-list__head,
+    .leaderboard-list__row {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) 82px 104px;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .leaderboard-list__head {
+      padding: 14px 16px;
+      background:
+        linear-gradient(180deg, rgba(74, 144, 217, 0.16), rgba(74, 144, 217, 0.03)),
+        rgba(8, 15, 31, 0.96);
+      color: var(--text-secondary);
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .leaderboard-list__row {
+      padding: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .leaderboard-list__row:nth-child(odd) {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .leaderboard-list__rank,
+    .leaderboard-list__season,
+    .leaderboard-list__value {
+      color: var(--uk-white);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .leaderboard-list__rank {
+      text-align: center;
+    }
+
+    .leaderboard-list__season,
+    .leaderboard-list__value {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .leaderboard-list__value {
+      color: #d8e7ff;
+    }
+
+    .leaderboard-player {
+      display: grid;
+      gap: 4px;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .leaderboard-player__name {
+      color: var(--text-primary);
+      font-weight: 700;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .leaderboard-player__meta {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    .leaderboard-progress {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .leaderboard-progress strong {
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 768px) {
+      .leaderboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .leaderboard-card__top,
+      .leaderboard-controls {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .leaderboard-list__head,
+      .leaderboard-list__row {
+        grid-template-columns: 40px minmax(0, 1fr) 70px 86px;
+        gap: 8px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .leaderboard-list__head {
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+      }
+    }
+  </style>
+</head>
+<body data-page="leaderboards">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div class="hero-banner">
+        <span class="eyebrow">Historical Leaderboards</span>
+        <h1 class="hero-title">Kentucky Player Seasons</h1>
+        <p class="lead">Top PPG seasons, best TS%, best college player rating, best net rating, most efficient shooters, and best freshman seasons across loaded Kentucky data.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="leaderboard-controls">
+        <div class="leaderboard-progress" id="leaderboard-progress">Preparing historical leaderboards...</div>
+        <div class="btn-group" aria-label="Leaderboard filters">
+          <button class="btn btn--secondary is-active" type="button" data-leaderboard-sample="rotation">Rotation</button>
+          <button class="btn btn--ghost" type="button" data-leaderboard-sample="all">All Players</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="leaderboard-summary" class="leaderboard-summary">
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+        <div class="card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--stat"></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="leaderboard-grid" class="leaderboard-grid">
+        <article class="card leaderboard-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--stat"></div></article>
+        <article class="card leaderboard-card"><div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--stat"></div></article>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const TEAM_NAME = "Kentucky";
+    const LOADED_SEASONS = Array.from({ length: 2026 - 2000 + 1 }, (_, index) => 2026 - index);
+    const BOARD_LIMIT = 10;
+    const SAMPLE_RULES = {
+      rotation: {
+        label: "Rotation",
+        minGames: 8,
+        minMinutesPerGame: 10,
+        minFgaPerGame: 3,
+        minThreesPerGame: 1
+      },
+      all: {
+        label: "All Players",
+        minGames: 1,
+        minMinutesPerGame: 0,
+        minFgaPerGame: 0,
+        minThreesPerGame: 0
+      }
+    };
+
+    let leaderboardRows = [];
+    let sampleMode = "rotation";
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function perGame(total, games) {
+      const gamesNum = Number(games || 0);
+      return gamesNum ? Number(total || 0) / gamesNum : 0;
+    }
+
+    function shotPct(stat) {
+      const raw = Number(stat?.pct);
+      if (Number.isFinite(raw) && raw > 0) {
+        return Math.abs(raw) <= 1 ? raw * 100 : raw;
+      }
+
+      const made = Number(stat?.made || 0);
+      const attempted = Number(stat?.attempted || 0);
+      return attempted ? (made / attempted) * 100 : 0;
+    }
+
+    function getClassYear(player, season) {
+      if (typeof getHelpers().utils.getPlayerClassYear === "function") {
+        return getHelpers().utils.getPlayerClassYear(player, season);
+      }
+
+      return "";
+    }
+
+    function playerUrl(row) {
+      const url = new URL("player.html", window.location.href);
+      url.searchParams.set("id", String(row.athleteId));
+      url.searchParams.set("season", String(row.season));
+      return url.toString();
+    }
+
+    function normalizeSeasonRow(row, season) {
+      const games = Number(row.games || 0);
+      const fieldGoalAttempts = Number(row.fieldGoals?.attempted || 0);
+      const threeAttempts = Number(row.threePointFieldGoals?.attempted || 0);
+      const freeThrowAttempts = Number(row.freeThrows?.attempted || 0);
+      const trueShooting = Number(row.trueShootingPct || 0);
+      const effectiveFieldGoal = Number(row.effectiveFieldGoalPct || 0);
+      const classYear = getClassYear(row, season);
+      const ppg = perGame(row.points, games);
+      const mpg = perGame(row.minutes, games);
+      const fgaPerGame = perGame(fieldGoalAttempts, games);
+      const threePerGame = perGame(threeAttempts, games);
+      const rating = getHelpers().utils.calculateCollegePlayerRating
+        ? getHelpers().utils.calculateCollegePlayerRating(row)
+        : 0;
+      const efficiencyScore = (
+        (Math.abs(trueShooting) <= 1 ? trueShooting * 100 : trueShooting) * 0.44
+        + (Math.abs(effectiveFieldGoal) <= 1 ? effectiveFieldGoal * 100 : effectiveFieldGoal) * 0.28
+        + shotPct(row.threePointFieldGoals) * 0.12
+        + shotPct(row.freeThrows) * 0.08
+        + Math.min(fgaPerGame, 12) * 1.4
+        + Math.min(freeThrowAttempts / Math.max(games, 1), 7) * 0.8
+      );
+
+      return {
+        ...row,
+        season,
+        classYear,
+        games,
+        ppg,
+        mpg,
+        fgaPerGame,
+        threePerGame,
+        rating,
+        trueShooting,
+        effectiveFieldGoal,
+        netRating: Number(row.netRating || 0),
+        offensiveRating: Number(row.offensiveRating || 0),
+        fieldGoalAttempts,
+        threeAttempts,
+        freeThrowAttempts,
+        efficiencyScore
+      };
+    }
+
+    function sortByMetric(rows, key) {
+      return rows
+        .slice()
+        .filter((row) => Number.isFinite(Number(row[key])))
+        .sort((left, right) => {
+          const diff = Number(right[key]) - Number(left[key]);
+          if (diff !== 0) return diff;
+          return String(left.name || "").localeCompare(String(right.name || ""));
+        })
+        .slice(0, BOARD_LIMIT);
+    }
+
+    function passesSample(row, overrides = {}) {
+      const rule = { ...SAMPLE_RULES[sampleMode], ...overrides };
+      return row.games >= rule.minGames
+        && row.mpg >= rule.minMinutesPerGame
+        && row.fgaPerGame >= rule.minFgaPerGame
+        && row.threePerGame >= rule.minThreesPerGame;
+    }
+
+    function buildBoards(rows) {
+      const eligible = rows.filter((row) => passesSample(row));
+      const shooters = rows.filter((row) => passesSample(row, { minFgaPerGame: SAMPLE_RULES[sampleMode].minFgaPerGame || 2 }));
+      const threePointShooters = rows.filter((row) => passesSample(row, { minThreesPerGame: SAMPLE_RULES[sampleMode].minThreesPerGame || 1 }));
+      const freshmen = rows.filter((row) => row.classYear === "Fr." && passesSample(row, { minThreesPerGame: 0 }));
+
+      return [
+        {
+          id: "ppg",
+          title: "Top PPG Seasons",
+          note: "Scoring average by player season.",
+          badge: "PPG",
+          rows: sortByMetric(eligible, "ppg"),
+          value: (row) => `${fmtNum(row.ppg, 1)} PPG`,
+          detail: (row) => `${fmtNum(row.mpg, 1)} MPG`
+        },
+        {
+          id: "ts",
+          title: "Best TS%",
+          note: "True shooting percentage with volume filters.",
+          badge: "TS%",
+          rows: sortByMetric(shooters, "trueShooting"),
+          value: (row) => fmtPct(row.trueShooting),
+          detail: (row) => `${fmtNum(row.fgaPerGame, 1)} FGA/G`
+        },
+        {
+          id: "rating",
+          title: "Best College Player Rating",
+          note: "BBN Stats composite rating for a player season.",
+          badge: "Rating",
+          rows: sortByMetric(eligible, "rating"),
+          value: (row) => fmtNum(row.rating, 1),
+          detail: (row) => `${fmtNum(row.ppg, 1)} PPG`
+        },
+        {
+          id: "net",
+          title: "Best Net Rating",
+          note: "On-court adjusted point margin per 100 possessions.",
+          badge: "Net",
+          rows: sortByMetric(eligible, "netRating"),
+          value: (row) => fmtNum(row.netRating, 1),
+          detail: (row) => `${fmtNum(row.offensiveRating, 1)} OffRtg`
+        },
+        {
+          id: "shooters",
+          title: "Most Efficient Shooters",
+          note: "Blend of TS%, eFG%, perimeter accuracy, free throws, and volume.",
+          badge: "Score",
+          rows: sortByMetric(threePointShooters, "efficiencyScore"),
+          value: (row) => fmtNum(row.efficiencyScore, 1),
+          detail: (row) => `${fmtPct(row.trueShooting)} TS`
+        },
+        {
+          id: "freshmen",
+          title: "Best Freshman Seasons",
+          note: "Freshman seasons ranked by the BBN Stats player rating.",
+          badge: "Fr.",
+          rows: sortByMetric(freshmen, "rating"),
+          value: (row) => fmtNum(row.rating, 1),
+          detail: (row) => `${fmtNum(row.ppg, 1)} PPG`
+        }
+      ];
+    }
+
+    function renderSummary(rows) {
+      const seasons = new Set(rows.map((row) => row.season));
+      const players = new Set(rows.map((row) => `${row.athleteId || row.name}-${row.season}`));
+      const topRating = sortByMetric(rows.filter((row) => passesSample(row)), "rating")[0];
+
+      document.getElementById("leaderboard-summary").innerHTML = `
+        <article class="card">
+          <div class="metric-label">Loaded Seasons</div>
+          <div class="metric-value">${escapeHtml(seasons.size)}</div>
+          <div class="hero-support">${escapeHtml(seasons.size ? `${seasonLabel(Math.min(...seasons))} to ${seasonLabel(Math.max(...seasons))}` : "No seasons loaded")}</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Player Seasons</div>
+          <div class="metric-value">${escapeHtml(players.size)}</div>
+          <div class="hero-support">${escapeHtml(SAMPLE_RULES[sampleMode].label)} sample rules</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Top Rated Season</div>
+          <div class="metric-value">${escapeHtml(topRating ? fmtNum(topRating.rating, 1) : "--")}</div>
+          <div class="hero-support">${escapeHtml(topRating ? `${topRating.name} | ${seasonLabel(topRating.season)}` : "No eligible rows")}</div>
+        </article>
+      `;
+    }
+
+    function renderBoardTable(board) {
+      if (!board.rows.length) {
+        return '<div class="empty-state">No eligible player seasons for this board.</div>';
+      }
+
+      return `
+        <div class="leaderboard-list">
+          <div class="leaderboard-list__head" aria-hidden="true">
+            <span>Rank</span>
+            <span>Player</span>
+            <span style="text-align: right;">Season</span>
+            <span style="text-align: right;">${escapeHtml(board.badge)}</span>
+          </div>
+          ${board.rows.map((row, index) => `
+            <div class="leaderboard-list__row">
+              <span class="leaderboard-list__rank">${index + 1}</span>
+              <span class="leaderboard-player">
+                <a class="leaderboard-player__name cell-link" href="${escapeHtml(playerUrl(row))}">${escapeHtml(row.name || "Unknown Player")}</a>
+                <span class="leaderboard-player__meta">${escapeHtml(`${row.classYear || "--"} | ${row.games} G | ${board.detail(row)}`)}</span>
+              </span>
+              <span class="leaderboard-list__season">${escapeHtml(seasonLabel(row.season))}</span>
+              <span class="leaderboard-list__value">${escapeHtml(board.value(row))}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderLeaderboards() {
+      const boards = buildBoards(leaderboardRows);
+
+      renderSummary(leaderboardRows);
+      document.getElementById("leaderboard-grid").innerHTML = boards.map((board) => `
+        <article class="card leaderboard-card">
+          <div class="leaderboard-card__top">
+            <div>
+              <h2 class="leaderboard-card__title">${escapeHtml(board.title)}</h2>
+              <p class="leaderboard-card__copy">${escapeHtml(board.note)}</p>
+            </div>
+            <span class="leaderboard-badge">${escapeHtml(board.badge)}</span>
+          </div>
+          ${renderBoardTable(board)}
+        </article>
+      `).join("");
+
+      document.getElementById("leaderboard-progress").innerHTML = `
+        Showing <strong>${escapeHtml(SAMPLE_RULES[sampleMode].label)}</strong> boards across <strong>${escapeHtml(String(leaderboardRows.length))}</strong> loaded player seasons.
+      `;
+    }
+
+    function renderError(message) {
+      const safeMessage = escapeHtml(message || "Please try again later.");
+      document.getElementById("leaderboard-summary").innerHTML = "";
+      document.getElementById("leaderboard-grid").innerHTML = `
+        <div class="empty-state">
+          <h2 class="card-title">Unable to load leaderboards</h2>
+          <p>${safeMessage}</p>
+          <button class="btn btn--secondary" type="button" id="retry-leaderboards">Retry</button>
+        </div>
+      `;
+      document.getElementById("retry-leaderboards")?.addEventListener("click", () => window.location.reload());
+    }
+
+    async function loadSeasonRows(season) {
+      const response = await getHelpers().api.apiFetch("/stats/player/season", { team: TEAM_NAME, season });
+      return safeArray(response)
+        .filter((row) => row && (row.athleteId || row.name))
+        .map((row) => normalizeSeasonRow(row, season));
+    }
+
+    async function loadLeaderboardsPage() {
+      getHelpers().printer.bindExportButtons?.({ pageName: "leaderboards", elementId: "main-content" });
+
+      document.querySelectorAll("[data-leaderboard-sample]").forEach((button) => {
+        button.addEventListener("click", () => {
+          sampleMode = button.dataset.leaderboardSample;
+          document.querySelectorAll("[data-leaderboard-sample]").forEach((nextButton) => {
+            const active = nextButton.dataset.leaderboardSample === sampleMode;
+            nextButton.className = `btn ${active ? "btn--secondary is-active" : "btn--ghost"}`;
+          });
+          renderLeaderboards();
+        });
+      });
+
+      try {
+        const loaded = [];
+        for (const season of LOADED_SEASONS) {
+          document.getElementById("leaderboard-progress").textContent = `Loading ${seasonLabel(season)} player seasons...`;
+          try {
+            loaded.push(...await loadSeasonRows(season));
+          } catch (error) {
+            // Keep the page useful when one historical API season is unavailable.
+          }
+        }
+
+        leaderboardRows = loaded.filter((row) => row.games > 0);
+
+        if (!leaderboardRows.length) {
+          renderError("No historical Kentucky player seasons are available.");
+          return;
+        }
+
+        renderLeaderboards();
+      } catch (error) {
+        renderError(error?.message || "Please try again later.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadLeaderboardsPage);
+  </script>
+</body>
+</html>

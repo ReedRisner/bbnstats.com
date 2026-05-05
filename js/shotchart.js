@@ -1,14 +1,18 @@
-const CANVAS_W = 640;
-const CANVAS_H = 560;
-const BKCX = 320;
-const BKCY = 52;
-const LANE_LEFT = 243;
-const LANE_RIGHT = 397;
-const FT_Y = 226;
-const THREE_RADIUS = 274;
-const CORNER_CX_L = 96;
-const CORNER_CX_R = 544;
-const CORNER_Y = 167;
+const CANVAS_W = 500;
+const CANVAS_H = 470;
+const BKCX = 250;
+const BKCY = 75;
+const LANE_LEFT = 190;
+const LANE_RIGHT = 310;
+const FT_Y = 190;
+const RESTRICTED_RADIUS = 40;
+const SHORT_MID_RADIUS = 100;
+const THREE_RADIUS = 207.5;
+const CORNER_Y = 150;
+const CORNER_CX_L = BKCX - Math.sqrt((THREE_RADIUS ** 2) - ((CORNER_Y - BKCY) ** 2));
+const CORNER_CX_R = BKCX + Math.sqrt((THREE_RADIUS ** 2) - ((CORNER_Y - BKCY) ** 2));
+const CORNER_ZONE_INSET = 88;
+const ZONE_CELL = 2;
 
 const FULL_COURT_W = 940;
 const FULL_COURT_H = 500;
@@ -56,18 +60,18 @@ const ZONE_LABELS = {
 };
 
 const ZONE_LABEL_POSITIONS = {
-  restricted: { x: 320, y: 68 },
-  shortMidCenter: { x: 320, y: 140 },
-  shortMidL: { x: 175, y: 130 },
-  shortMidR: { x: 465, y: 130 },
-  midL: { x: 130, y: 220 },
-  midR: { x: 510, y: 220 },
-  midCenter: { x: 320, y: 260 },
-  corner3L: { x: 42, y: 80 },
-  corner3R: { x: 598, y: 80 },
-  wing3L: { x: 55, y: 320 },
-  wing3R: { x: 585, y: 320 },
-  center3: { x: 320, y: 430 }
+  restricted: { x: 250, y: 78 },
+  shortMidCenter: { x: 250, y: 138 },
+  shortMidL: { x: 124, y: 132 },
+  shortMidR: { x: 376, y: 132 },
+  midL: { x: 120, y: 232 },
+  midR: { x: 380, y: 232 },
+  midCenter: { x: 250, y: 258 },
+  corner3L: { x: 54, y: 84 },
+  corner3R: { x: 446, y: 84 },
+  wing3L: { x: 78, y: 342 },
+  wing3R: { x: 422, y: 342 },
+  center3: { x: 250, y: 392 }
 };
 
 const THREE_POINT_ZONES = new Set(["corner3L", "corner3R", "wing3L", "wing3R", "center3"]);
@@ -86,8 +90,8 @@ function normalizeToLeftBasket(apiX, apiY) {
 
 function toCanvas(normalizedX, normalizedY) {
   return {
-    cx: (normalizedY / FULL_COURT_H) * CANVAS_W,
-    cy: (normalizedX / HALF_COURT_X) * CANVAS_H
+    cx: clamp(normalizedY, 0, FULL_COURT_H),
+    cy: clamp(normalizedX, 0, HALF_COURT_X)
   };
 }
 
@@ -120,32 +124,34 @@ function createEmptyZoneSummary() {
 }
 
 function getZone(normX, normY) {
-  if (normX > 440) return null;
+  if (normX > HALF_COURT_X || normY < 0 || normY > FULL_COURT_H) return null;
   if (normX <= 0 && normY <= 0) return null;
 
   const dx = normX - LEFT_BASKET_X;
   const dy = normY - LEFT_BASKET_Y;
   const dist = Math.sqrt((dx * dx) + (dy * dy));
+  const angle = Math.atan2(dy, Math.max(dx, 1));
+  const absAngle = Math.abs(angle);
+  const isLeftSide = normY < LEFT_BASKET_Y;
+  const isRightSide = normY > LEFT_BASKET_Y;
+  const inCornerDepth = normX <= CORNER_Y;
 
-  if (dist < 35) return "restricted";
-  if (normX < 140 && normY < 90) return "corner3L";
-  if (normX < 140 && normY > 410) return "corner3R";
+  if (dist <= RESTRICTED_RADIUS) return "restricted";
+  if (inCornerDepth && normY <= CORNER_ZONE_INSET) return "corner3L";
+  if (inCornerDepth && normY >= FULL_COURT_H - CORNER_ZONE_INSET) return "corner3R";
 
-  if (dist > 275) {
-    if (normY < 200) return "wing3L";
-    if (normY > 300) return "wing3R";
-    return "center3";
+  if (dist >= THREE_RADIUS) {
+    if (absAngle <= 0.48) return "center3";
+    return isLeftSide ? "wing3L" : "wing3R";
   }
 
-  if (dist < 100) {
-    if (normY < 220) return "shortMidL";
-    if (normY > 280) return "shortMidR";
-    return "shortMidCenter";
+  if (dist < SHORT_MID_RADIUS) {
+    if (absAngle <= 0.54) return "shortMidCenter";
+    return isLeftSide ? "shortMidL" : "shortMidR";
   }
 
-  if (normY < 200) return "midL";
-  if (normY > 300) return "midR";
-  return "midCenter";
+  if (absAngle <= 0.44) return "midCenter";
+  return isLeftSide ? "midL" : "midR";
 }
 
 function getZoneName(shot) {
@@ -163,7 +169,7 @@ function getShotDistanceFeet(shot) {
 
   const dx = rawX - LEFT_BASKET_X;
   const dy = rawY - LEFT_BASKET_Y;
-  return Math.sqrt((dx * dx) + (dy * dy)) / 8.75;
+  return Math.sqrt((dx * dx) + (dy * dy)) / 10;
 }
 
 function normalizeShots(plays = [], athleteId = null) {
@@ -183,7 +189,7 @@ function normalizeShots(plays = [], athleteId = null) {
     if (rawX === 0 && rawY === 0) return null;
 
     const norm = normalizeToLeftBasket(rawX, rawY);
-    if (norm.x > 440) return null;
+    if (norm.x > HALF_COURT_X) return null;
 
     const zoneKey = getZone(norm.x, norm.y);
     if (!zoneKey) return null;
@@ -243,57 +249,72 @@ function summarizeZones(plays = [], athleteId = null) {
 }
 
 function zoneColor(pct, attempted, zoneKey) {
-  if (attempted === 0) return "rgba(100,100,100,0.25)";
+  if (attempted === 0) return "#bcae8a";
 
   if (THREE_POINT_ZONES.has(zoneKey)) {
-    if (pct >= 0.45) return "#c1440e";
-    if (pct >= 0.40) return "#e8956d";
-    if (pct >= 0.34) return "#f0c060";
-    if (pct >= 0.28) return "#7fc97f";
-    return "#2d6a2d";
+    if (pct >= 0.45) return "#1f8f43";
+    if (pct >= 0.38) return "#6fba45";
+    if (pct >= 0.33) return "#f2c84b";
+    if (pct >= 0.28) return "#ef7a35";
+    return "#d33f25";
   }
 
   if (PAINT_ZONES.has(zoneKey)) {
-    if (pct >= 0.65) return "#c1440e";
-    if (pct >= 0.55) return "#e8956d";
-    if (pct >= 0.46) return "#f0c060";
-    if (pct >= 0.38) return "#7fc97f";
-    return "#2d6a2d";
+    if (pct >= 0.64) return "#1f8f43";
+    if (pct >= 0.56) return "#6fba45";
+    if (pct >= 0.48) return "#f2c84b";
+    if (pct >= 0.40) return "#ef7a35";
+    return "#d33f25";
   }
 
-  if (pct >= 0.52) return "#c1440e";
-  if (pct >= 0.46) return "#e8956d";
-  if (pct >= 0.40) return "#f0c060";
-  if (pct >= 0.33) return "#7fc97f";
-  return "#2d6a2d";
+  if (pct >= 0.50) return "#1f8f43";
+  if (pct >= 0.44) return "#6fba45";
+  if (pct >= 0.38) return "#f2c84b";
+  if (pct >= 0.32) return "#ef7a35";
+  return "#d33f25";
 }
 
-function drawFloor(ctx) {
+function drawFloor(ctx, theme = "wood") {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-  ctx.fillStyle = "#c8a96e";
+
+  if (theme === "paper") {
+    ctx.fillStyle = "#fbfbf7";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    return;
+  }
+
+  if (theme === "night") {
+    ctx.fillStyle = "#05050c";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    return;
+  }
+
+  ctx.fillStyle = "#caa76a";
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  ctx.strokeStyle = "rgba(150, 100, 40, 0.08)";
+  ctx.strokeStyle = "rgba(92, 58, 26, 0.07)";
   ctx.lineWidth = 1;
-  for (let i = 0; i < CANVAS_H; i += 4) {
+  for (let i = 0; i < CANVAS_H; i += 3) {
     ctx.beginPath();
     ctx.moveTo(0, i);
     ctx.lineTo(CANVAS_W, i);
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#b8975a";
-  ctx.fillRect(LANE_LEFT, BKCY, LANE_RIGHT - LANE_LEFT, FT_Y - BKCY);
+  ctx.fillStyle = "rgba(184, 151, 90, 0.62)";
+  ctx.fillRect(LANE_LEFT, 0, LANE_RIGHT - LANE_LEFT, FT_Y);
 }
 
-function drawCourtLines(ctx) {
-  ctx.strokeStyle = "#1a1a1a";
-  ctx.lineWidth = 2;
+function drawCourtLines(ctx, theme = "dark") {
+  const isLight = theme === "light";
+  const isHeat = theme === "heat";
+  ctx.strokeStyle = isLight ? "#111111" : isHeat ? "rgba(76, 160, 255, 0.62)" : "rgba(255, 255, 255, 0.88)";
+  ctx.lineWidth = isHeat ? 1.2 : 2;
   ctx.setLineDash([]);
 
   ctx.beginPath();
-  ctx.moveTo(295, 16);
-  ctx.lineTo(345, 16);
+  ctx.moveTo(BKCX - 25, BKCY - 40);
+  ctx.lineTo(BKCX + 25, BKCY - 40);
   ctx.stroke();
 
   ctx.beginPath();
@@ -301,32 +322,32 @@ function drawCourtLines(ctx) {
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(BKCX, BKCY, 30, 0, Math.PI, false);
+  ctx.arc(BKCX, BKCY, RESTRICTED_RADIUS, 0, Math.PI, false);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(LANE_LEFT, BKCY);
+  ctx.moveTo(LANE_LEFT, 0);
   ctx.lineTo(LANE_LEFT, FT_Y);
-  ctx.moveTo(LANE_RIGHT, BKCY);
+  ctx.moveTo(LANE_RIGHT, 0);
   ctx.lineTo(LANE_RIGHT, FT_Y);
   ctx.moveTo(LANE_LEFT, FT_Y);
   ctx.lineTo(LANE_RIGHT, FT_Y);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(BKCX, FT_Y, 55, 0, Math.PI, false);
+  ctx.arc(BKCX, FT_Y, 60, 0, Math.PI, false);
   ctx.stroke();
 
   ctx.setLineDash([6, 4]);
   ctx.beginPath();
-  ctx.arc(BKCX, FT_Y, 55, Math.PI, 0, false);
+  ctx.arc(BKCX, FT_Y, 60, Math.PI, 0, false);
   ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.beginPath();
-  ctx.moveTo(CORNER_CX_L, BKCY);
+  ctx.moveTo(CORNER_CX_L, 0);
   ctx.lineTo(CORNER_CX_L, CORNER_Y);
-  ctx.moveTo(CORNER_CX_R, BKCY);
+  ctx.moveTo(CORNER_CX_R, 0);
   ctx.lineTo(CORNER_CX_R, CORNER_Y);
   ctx.stroke();
 
@@ -337,11 +358,13 @@ function drawCourtLines(ctx) {
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(0, CANVAS_H - 10);
-  ctx.lineTo(CANVAS_W, CANVAS_H - 10);
+  ctx.moveTo(0, CANVAS_H - 1);
+  ctx.lineTo(CANVAS_W, CANVAS_H - 1);
+  ctx.moveTo(0, 1);
+  ctx.lineTo(CANVAS_W, 1);
   ctx.stroke();
 
-  [100, 140, 180].forEach((y) => {
+  [80, 110, 140, 170].forEach((y) => {
     ctx.beginPath();
     ctx.moveTo(LANE_LEFT - 8, y);
     ctx.lineTo(LANE_LEFT, y);
@@ -492,7 +515,7 @@ function drawZoneLabel(ctx, x, y, zone) {
   const bx = x - boxW / 2;
   const by = y - boxH / 2;
 
-  ctx.fillStyle = "rgba(30, 30, 30, 0.80)";
+  ctx.fillStyle = "rgba(31, 27, 24, 0.86)";
   drawRoundedRect(ctx, bx, by, boxW, boxH, 3);
   ctx.fill();
 
@@ -505,9 +528,16 @@ function drawZoneLabel(ctx, x, y, zone) {
 }
 
 function drawZoneFills(ctx, summary) {
-  ZONE_KEYS.forEach((key) => {
-    fillZonePath(ctx, key, zoneColor(summary[key].pct, summary[key].attempted, key));
-  });
+  ctx.save();
+  for (let y = 0; y < CANVAS_H; y += ZONE_CELL) {
+    for (let x = 0; x < CANVAS_W; x += ZONE_CELL) {
+      const zoneKey = getZone(y, x);
+      if (!zoneKey) continue;
+      ctx.fillStyle = zoneColor(summary[zoneKey].pct, summary[zoneKey].attempted, zoneKey);
+      ctx.fillRect(x, y, ZONE_CELL, ZONE_CELL);
+    }
+  }
+  ctx.restore();
 }
 
 function drawZoneLabels(ctx, summary) {
@@ -530,20 +560,20 @@ function drawShotDots(ctx, shots) {
   shots.forEach((shot) => {
     if (shot.made) {
       ctx.beginPath();
-      ctx.arc(shot.point.x, shot.point.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#0033A0";
+      ctx.arc(shot.point.x, shot.point.y, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#168b2f";
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 0.7;
       ctx.stroke();
     } else {
-      ctx.strokeStyle = "#E74C3C";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ff1f1f";
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(shot.point.x - 5, shot.point.y - 5);
-      ctx.lineTo(shot.point.x + 5, shot.point.y + 5);
-      ctx.moveTo(shot.point.x + 5, shot.point.y - 5);
-      ctx.lineTo(shot.point.x - 5, shot.point.y + 5);
+      ctx.moveTo(shot.point.x - 4, shot.point.y - 4);
+      ctx.lineTo(shot.point.x + 4, shot.point.y + 4);
+      ctx.moveTo(shot.point.x + 4, shot.point.y - 4);
+      ctx.lineTo(shot.point.x - 4, shot.point.y + 4);
       ctx.stroke();
     }
 
@@ -556,45 +586,73 @@ function drawHeatmap(ctx, shots) {
   offscreen.width = CANVAS_W;
   offscreen.height = CANVAS_H;
   const octx = offscreen.getContext("2d");
+  octx.globalCompositeOperation = "lighter";
 
   shots.forEach((shot) => {
-    const gradient = octx.createRadialGradient(shot.point.x, shot.point.y, 0, shot.point.x, shot.point.y, 34);
-    gradient.addColorStop(0, "rgba(0, 51, 160, 0.18)");
-    gradient.addColorStop(1, "rgba(0, 51, 160, 0)");
+    const radius = 46;
+    const gradient = octx.createRadialGradient(shot.point.x, shot.point.y, 0, shot.point.x, shot.point.y, radius);
+    gradient.addColorStop(0, "rgba(228, 248, 255, 0.34)");
+    gradient.addColorStop(0.24, "rgba(104, 205, 255, 0.28)");
+    gradient.addColorStop(0.55, "rgba(30, 116, 255, 0.18)");
+    gradient.addColorStop(1, "rgba(4, 32, 128, 0)");
     octx.fillStyle = gradient;
-    octx.fillRect(shot.point.x - 34, shot.point.y - 34, 68, 68);
+    octx.fillRect(shot.point.x - radius, shot.point.y - radius, radius * 2, radius * 2);
     drawDebugLabel(octx, shot);
   });
 
   ctx.drawImage(offscreen, 0, 0);
 }
 
-function drawWatermark(ctx) {
-  ctx.fillStyle = "rgba(80, 50, 20, 0.5)";
+function drawHeatmapLegend(ctx) {
+  const x = 172;
+  const y = CANVAS_H - 34;
+  const w = 156;
+  const h = 7;
+  const gradient = ctx.createLinearGradient(x, y, x + w, y);
+  gradient.addColorStop(0, "#041b62");
+  gradient.addColorStop(0.45, "#1457d8");
+  gradient.addColorStop(0.72, "#39a8ff");
+  gradient.addColorStop(1, "#e4f8ff");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+  ctx.font = "9px Inter, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("Shot frequency", x - 8, y + h);
+  ctx.textAlign = "left";
+  ctx.fillText("High", x + w + 8, y + h);
+}
+
+function drawWatermark(ctx, theme = "wood") {
+  ctx.fillStyle = theme === "night" ? "rgba(255, 255, 255, 0.54)" : "rgba(80, 50, 20, 0.5)";
   ctx.font = "italic 11px Inter, sans-serif";
   ctx.textAlign = "right";
   ctx.fillText("bbnstats.com", CANVAS_W - 8, CANVAS_H - 8);
 }
 
 function renderShotChartCanvas(ctx, shots, mode) {
-  drawFloor(ctx);
-
   if (mode === "zone") {
+    drawFloor(ctx, "wood");
     const summary = summarizeZoneChart(shots);
     drawZoneFills(ctx, summary);
-    drawCourtLines(ctx);
+    drawCourtLines(ctx, "dark");
     drawZoneLabels(ctx, summary);
     drawWatermark(ctx);
     return summary;
   }
 
-  drawCourtLines(ctx);
   if (mode === "heatmap") {
+    drawFloor(ctx, "night");
+    drawCourtLines(ctx, "heat");
     drawHeatmap(ctx, shots);
+    drawHeatmapLegend(ctx);
+    drawWatermark(ctx, "night");
   } else {
+    drawFloor(ctx, "paper");
+    drawCourtLines(ctx, "light");
     drawShotDots(ctx, shots);
+    drawWatermark(ctx);
   }
-  drawWatermark(ctx);
   return summarizeZoneChart(shots);
 }
 

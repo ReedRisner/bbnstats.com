@@ -12,17 +12,40 @@ function sanitizeFilenamePart(value) {
 
 function buildExportFilename(pageName = "page", season) {
   const { getSeason } = getPrintUtils();
-  const resolvedSeason = season || (typeof getSeason === "function" ? getSeason() : 2025);
+  const resolvedSeason = season || (typeof getSeason === "function" ? getSeason() : 2026);
   const safePage = sanitizeFilenamePart(pageName) || "page";
   return `bbnstats-${safePage}-${resolvedSeason}`;
 }
 
-function exportAsImage(elementId, filename) {
+function loadHtml2Canvas() {
+  if (typeof window.html2canvas === "function") {
+    return Promise.resolve(window.html2canvas);
+  }
+
+  if (window.BBNStatsHtml2CanvasPromise) {
+    return window.BBNStatsHtml2CanvasPromise;
+  }
+
+  window.BBNStatsHtml2CanvasPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    script.async = true;
+    script.onload = () => resolve(window.html2canvas);
+    script.onerror = () => reject(new Error("html2canvas failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return window.BBNStatsHtml2CanvasPromise;
+}
+
+async function exportAsImage(elementId, filename) {
   const el = document.getElementById(elementId);
 
   if (!el) {
     throw new Error(`Unable to export image. Element not found: ${elementId}`);
   }
+
+  await loadHtml2Canvas();
 
   if (typeof window.html2canvas !== "function") {
     throw new Error("html2canvas is not loaded.");
@@ -95,6 +118,7 @@ function bindExportButtons(options = {}) {
 window.BBNStatsPrint = {
   sanitizeFilenamePart,
   buildExportFilename,
+  loadHtml2Canvas,
   exportAsImage,
   printPage,
   moveExportButtonsToBottom,

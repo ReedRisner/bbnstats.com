@@ -25,7 +25,6 @@
   <link rel="stylesheet" href="css/print.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     .schedule-banner {
       display: grid;
@@ -417,27 +416,47 @@
     function buildApRankings(rows) {
       return safeArray(rows)
         .filter((row) => String(row?.pollType || "").toLowerCase().includes("ap"))
-        .filter((row) => row?.team && row?.pollDate && Number.isFinite(Number(row?.ranking)))
+        .filter((row) => row?.team && row?.pollDate)
         .map((row) => ({
           ...row,
+          teamIdValue: Number(row?.teamId),
           normalizedTeam: normalizeTeamName(row.team),
+          rankingValue: Number(row?.ranking ?? row?.rank ?? row?.position),
           pollTime: new Date(row.pollDate).getTime()
         }))
-        .filter((row) => Number.isFinite(row.pollTime))
+        .filter((row) => Number.isFinite(row.pollTime) && Number.isFinite(row.rankingValue))
         .sort((a, b) => a.pollTime - b.pollTime);
+    }
+
+    function getOpponentTeamId(game) {
+      const kentuckyHome = String(game?.homeTeam || "").toLowerCase().includes("kentucky");
+      const rawId = kentuckyHome ? game?.awayTeamId : game?.homeTeamId;
+      const parsed = Number(rawId);
+      return Number.isFinite(parsed) ? parsed : null;
     }
 
     function getOpponentApRankForGame(game) {
       const gameTime = new Date(getDateValue(game)).getTime();
       const opponentName = normalizeTeamName(getOpponentName(game));
+      const opponentTeamId = getOpponentTeamId(game);
 
       if (!Number.isFinite(gameTime) || !opponentName) {
         return null;
       }
 
-      const matchingPollRows = apRankings.filter((row) => row.pollTime <= gameTime && row.normalizedTeam === opponentName);
+      const matchingPollRows = apRankings.filter((row) => {
+        if (row.pollTime > gameTime) {
+          return false;
+        }
+
+        if (Number.isFinite(opponentTeamId) && Number.isFinite(row.teamIdValue)) {
+          return row.teamIdValue === opponentTeamId;
+        }
+
+        return row.normalizedTeam === opponentName;
+      });
       const latestPoll = matchingPollRows.at(-1);
-      return latestPoll ? Number(latestPoll.ranking) : null;
+      return latestPoll ? Number(latestPoll.rankingValue) : null;
     }
 
     function getVenueText(game) {
@@ -461,7 +480,9 @@
     }
 
     function getOpponentRank(game) {
-      return game?.opponentRank || game?.opponent?.rank || game?.awayRank || game?.homeRank || null;
+      const kentuckyHome = String(game?.homeTeam || "").toLowerCase().includes("kentucky");
+      const sideRank = kentuckyHome ? game?.awayRank : game?.homeRank;
+      return Number(game?.opponentRank ?? game?.opponent?.rank ?? sideRank ?? game?.opponentRanking ?? game?.rank ?? null) || null;
     }
 
     function getKentuckyScore(game) {
@@ -570,15 +591,10 @@
         return true;
       }
 
-      const text = [game?.seasonType, game?.tournament, game?.eventType, game?.eventName].filter(Boolean).join(" ").toLowerCase();
-      return text.includes("post") ||
-        text.includes("ncaa") ||
-        text.includes("nit") ||
-        text.includes("tournament") ||
-        text.includes("sec tournament") ||
-        text.includes("sec tourney") ||
-        text.includes("conference tournament") ||
-        text.includes("conference championship");
+      const utils = getHelpers().utils;
+      return typeof utils.isPostseasonLike === "function"
+        ? utils.isPostseasonLike(game)
+        : false;
     }
 
     function computeRecord(games) {
@@ -772,7 +788,7 @@
             <div class="schedule-row__sub">${escapeHtml(new Date(date).toLocaleDateString("en-US", { weekday: "short" }))}</div>
           </div>
           <div class="schedule-row__block">
-            <div class="schedule-row__opponent">${escapeHtml(getOpponentName(game))}${opponentRank ? ` <span class="small-badge">#${escapeHtml(opponentRank)}</span>` : ""}</div>
+            <div class="schedule-row__opponent">${escapeHtml(opponentRank ? `#${opponentRank} ${getOpponentName(game)}` : getOpponentName(game))}</div>
             <div class="badge-row">${badges}</div>
           </div>
           <div class="schedule-row__block">
@@ -914,6 +930,17 @@
 
       return sortedGames.map((game) => {
         const conferenceGame = isConferenceGame(game);
+        const tournamentText = [game?.tournament, game?.eventName, game?.seasonTypeLabel, game?.notes, game?.name, game?.label]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const explicitTournamentPostseason =
+          tournamentText.includes("ncaa") ||
+          tournamentText.includes("march madness") ||
+          tournamentText.includes("sec tournament") ||
+          tournamentText.includes("sec tourney") ||
+          tournamentText.includes("southeastern conference tournament") ||
+          tournamentText.includes("conference tournament");
 
         if (conferenceGame) {
           conferenceGameCount += 1;
@@ -921,7 +948,10 @@
 
         return {
           ...game,
-          derivedPostseason: conferenceGame && conferenceGameCount > 18
+          derivedPostseason:
+            explicitTournamentPostseason ||
+            String(game?.seasonType || "").toLowerCase() === "postseason" ||
+            (conferenceGame && conferenceGameCount > 18)
         };
       });
     }
@@ -933,7 +963,7 @@
         const [gamesResponse, linesResponse, rankingsResponse] = await Promise.all([
           getHelpers().api.apiFetch("/games", { team: TEAM_NAME, season }),
           getHelpers().api.apiFetch("/lines", { team: TEAM_NAME, season }),
-          getHelpers().api.apiFetch("/rankings", { team: TEAM_NAME, season })
+          getHelpers().api.apiFetch("/rankings", { season, pollType: "ap" })
         ]);
 
         const linesMap = buildLinesMap(linesResponse);

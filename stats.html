@@ -24,8 +24,6 @@
   <link rel="stylesheet" href="css/charts.css">
   <link rel="stylesheet" href="css/print.css">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
     .stats-toolbar {
       display: grid;
@@ -50,6 +48,17 @@
     .stats-table th:first-child,
     .stats-table td:first-child {
       min-width: 200px;
+    }
+
+    .stats-table th[data-stat-key="collegePlayerRating"],
+    .stats-table td[data-stat-key="collegePlayerRating"] {
+      width: 56px;
+      min-width: 56px;
+      max-width: 56px;
+      padding-left: 8px;
+      padding-right: 8px;
+      text-align: center;
+      white-space: nowrap;
     }
 
     .heat-toggle-note {
@@ -125,6 +134,7 @@
     let currentSeasonType = "all";
     let heatEnabled = false;
     let currentSort = { key: "minutes", asc: false };
+    const seasonTypeCache = new Map();
 
     const TAB_COLUMNS = {
       traditional: [
@@ -138,10 +148,10 @@
         { key: "steals", label: "STL" },
         { key: "blocks", label: "BLK" },
         { key: "turnovers", label: "TO" },
-        { key: "fouls", label: "PF" },
         { key: "fieldGoals", label: "FG" },
         { key: "threePointFieldGoals", label: "3P" },
-        { key: "freeThrows", label: "FT" }
+        { key: "freeThrows", label: "FT" },
+        { key: "collegePlayerRating", label: "Rating" }
       ],
       advanced: [
         { key: "name", label: "Player" },
@@ -156,7 +166,8 @@
         { key: "freeThrowRate", label: "FT Rate" },
         { key: "offensiveReboundPct", label: "OReb%" },
         { key: "winShares", label: "Win Shares" },
-        { key: "wsPer40", label: "WS/40" }
+        { key: "wsPer40", label: "WS/40" },
+        { key: "collegePlayerRating", label: "Rating" }
       ],
       shooting: [
         { key: "name", label: "Player" },
@@ -168,7 +179,8 @@
         { key: "layups", label: "Layups" },
         { key: "twoPointJumpers", label: "2P Jumpers" },
         { key: "threePointJumpers", label: "3P Jumpers" },
-        { key: "assistedPct", label: "Assisted%" }
+        { key: "assistedPct", label: "Assisted%" },
+        { key: "collegePlayerRating", label: "Rating" }
       ]
     };
 
@@ -218,6 +230,14 @@
       return `${stat.made || 0}-${stat.attempted || 0} (${fmtPct(stat.pct)})`;
     }
 
+    function getSeasonTypeParam(mode) {
+      if (mode === "regular" || mode === "postseason") {
+        return mode;
+      }
+
+      return undefined;
+    }
+
     function normalizeRows(statsResponse, shootingResponse) {
       const shootingRows = safeArray(shootingResponse);
       const shootingById = new Map(
@@ -239,6 +259,9 @@
           shooting,
           games,
           gamesStarted: Number(row.gamesStarted || row.starts || 0),
+          collegePlayerRating: getHelpers().utils.calculateCollegePlayerRating
+            ? getHelpers().utils.calculateCollegePlayerRating(row)
+            : 0,
           winShares: Number(row.winShares?.total || 0),
           wsPer40: Number(row.winShares?.totalPer40 || 0)
         };
@@ -246,11 +269,7 @@
     }
 
     function filterRows() {
-      return allStatsRows.filter((row) => {
-        if (currentSeasonType === "regular") return String(row.seasonType || "").toLowerCase() !== "postseason";
-        if (currentSeasonType === "postseason") return String(row.seasonType || "").toLowerCase() === "postseason";
-        return true;
-      });
+      return allStatsRows.slice();
     }
 
     function comparableValue(row, key) {
@@ -272,7 +291,7 @@
           return currentMode === "perGame" ? perGame(row.rebounds?.total, row.games) : Number(row.rebounds?.total || 0);
         default: {
           const raw = row[key];
-          if (currentMode === "perGame" && ["minutes", "points", "assists", "steals", "blocks", "turnovers", "fouls"].includes(key)) {
+          if (currentMode === "perGame" && ["minutes", "points", "assists", "steals", "blocks", "turnovers"].includes(key)) {
             return perGame(raw, row.games);
           }
           return Number(raw || 0);
@@ -293,7 +312,6 @@
         case "steals":
         case "blocks":
         case "turnovers":
-        case "fouls":
           return escapeHtml(fmtNum(currentMode === "perGame" ? perGame(row[key], row.games) : row[key], 1));
         case "rebounds":
           return escapeHtml(fmtNum(currentMode === "perGame" ? perGame(row.rebounds?.total, row.games) : row.rebounds?.total, 1));
@@ -310,6 +328,7 @@
         case "offensiveRating":
         case "defensiveRating":
         case "netRating":
+        case "collegePlayerRating":
         case "PORPAG":
         case "freeThrowRate":
         case "assistsTurnoverRatio":
@@ -358,12 +377,12 @@
 
       document.getElementById("stats-head").innerHTML = `<tr>${columns.map((column) => {
         const arrow = currentSort.key === column.key ? (currentSort.asc ? " ▲" : " ▼") : "";
-        return `<th data-sort="${column.key}">${escapeHtml(column.label + arrow)}</th>`;
+        return `<th data-sort="${column.key}" data-stat-key="${column.key}">${escapeHtml(column.label + arrow)}</th>`;
       }).join("")}</tr>`;
 
       document.getElementById("stats-body").innerHTML = rows.map((row) => `
         <tr>
-          ${columns.map((column) => `<td style="${getHeatStyle(rows, column.key, row)}">${column.key === "name" ? renderValue(row, column.key) : escapeHtml(renderValue(row, column.key).replace(/<[^>]+>/g, ""))}</td>`).join("")}
+          ${columns.map((column) => `<td data-stat-key="${column.key}" style="${getHeatStyle(rows, column.key, row)}">${column.key === "name" ? renderValue(row, column.key) : escapeHtml(renderValue(row, column.key).replace(/<[^>]+>/g, ""))}</td>`).join("")}
         </tr>
       `).join("").replace(/&lt;a class=&quot;cell-link&quot; href=&quot;([^"]+)&quot;&gt;([^<]*)&lt;\/a&gt;/g, '<a class="cell-link" href="$1">$2</a>');
     }
@@ -391,8 +410,35 @@
       URL.revokeObjectURL(link.href);
     }
 
+    async function loadSeasonTypeRows(mode = currentSeasonType) {
+      if (seasonTypeCache.has(mode)) {
+        allStatsRows = seasonTypeCache.get(mode);
+        renderTable();
+        return;
+      }
+
+      const { api, utils } = getHelpers();
+      const season = utils.getSeason ? utils.getSeason() : 2026;
+      const seasonType = getSeasonTypeParam(mode);
+      const params = { team: TEAM_NAME, season };
+
+      if (seasonType) {
+        params.seasonType = seasonType;
+      }
+
+      const [statsResponse, shootingResponse] = await Promise.all([
+        api.apiFetch("/stats/player/season", params),
+        api.apiFetch("/stats/player/shooting/season", params)
+      ]);
+
+      const normalized = normalizeRows(statsResponse, shootingResponse);
+      seasonTypeCache.set(mode, normalized);
+      allStatsRows = normalized;
+      renderTable();
+    }
+
     async function loadStatsPage() {
-      const { api, utils, printer } = getHelpers();
+      const { utils, printer } = getHelpers();
       const season = utils.getSeason ? utils.getSeason() : 2026;
       printer.bindExportButtons({ pageName: "stats", elementId: "main-content" });
       document.getElementById("stats-title").textContent = seasonLabel(season);
@@ -408,10 +454,14 @@
       });
 
       document.querySelectorAll("[data-season-type]").forEach((button) => {
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
           currentSeasonType = button.dataset.seasonType;
           updateButtonState("[data-season-type]", currentSeasonType, "seasonType");
-          renderTable();
+          try {
+            await loadSeasonTypeRows(currentSeasonType);
+          } catch (error) {
+            document.getElementById("stats-body").innerHTML = `<tr><td colspan="20">Unable to load player stats. ${escapeHtml(error?.message || "Please try again later.")}</td></tr>`;
+          }
         });
       });
 
@@ -440,13 +490,7 @@
       document.getElementById("export-csv").addEventListener("click", exportCsv);
 
       try {
-        const [statsResponse, shootingResponse] = await Promise.all([
-          api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
-          api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season })
-        ]);
-
-        allStatsRows = normalizeRows(statsResponse, shootingResponse);
-        renderTable();
+        await loadSeasonTypeRows("all");
       } catch (error) {
         document.getElementById("stats-body").innerHTML = `<tr><td colspan="20">Unable to load player stats. ${escapeHtml(error?.message || "Please try again later.")}</td></tr>`;
       }

@@ -1,9 +1,12 @@
 const API_BASE = "https://api.collegebasketballdata.com";
-const API_KEY = "AWYk+Gxvl0TAxEx0RvaeaAjHtKVDAqzQAMXEPeAKw1BL+T+i96D3O9yHadseldrw";
+const API_KEY = "0/5PdgRvOqvcUo9VqUAcXFUEYqXxU3T26cGqt9c6FFArBcyqE4BD3njMuwOnQz+3";
 const cache = {};
 const REQUEST_SPACING_MS = 0;
 const RETRY_BASE_DELAY_MS = 750;
 const MAX_RETRIES = 5;
+const PERSISTED_CACHE_KEY = "bbnstats_api_cache_v1";
+const PERSISTED_CACHE_TTL_MS = 30 * 60 * 1000;
+const PERSISTED_CACHE_MAX_ENTRIES = 80;
 
 let requestQueue = Promise.resolve();
 let lastRequestAt = 0;
@@ -75,6 +78,56 @@ async function fetchWithRetry(url, attempt = 0) {
   return res.json();
 }
 
+function readPersistedCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PERSISTED_CACHE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writePersistedCache(nextCache) {
+  try {
+    const entries = Object.entries(nextCache)
+      .sort((left, right) => Number(right[1]?.savedAt || 0) - Number(left[1]?.savedAt || 0))
+      .slice(0, PERSISTED_CACHE_MAX_ENTRIES);
+
+    localStorage.setItem(PERSISTED_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch (error) {
+    try {
+      localStorage.removeItem(PERSISTED_CACHE_KEY);
+    } catch (removeError) {
+      // Ignore storage cleanup failures.
+    }
+  }
+}
+
+function getPersistedApiValue(url) {
+  const persisted = readPersistedCache();
+  const entry = persisted[url];
+
+  if (!entry || (Date.now() - Number(entry.savedAt || 0)) > PERSISTED_CACHE_TTL_MS) {
+    if (entry) {
+      delete persisted[url];
+      writePersistedCache(persisted);
+    }
+
+    return undefined;
+  }
+
+  return entry.value;
+}
+
+function setPersistedApiValue(url, value) {
+  const persisted = readPersistedCache();
+  persisted[url] = {
+    savedAt: Date.now(),
+    value
+  };
+  writePersistedCache(persisted);
+}
+
 async function apiFetch(path, params = {}) {
   const url = buildUrl(path, params);
 
@@ -82,7 +135,17 @@ async function apiFetch(path, params = {}) {
     return cache[url];
   }
 
-  cache[url] = scheduleRequest(() => fetchWithRetry(url)).catch((error) => {
+  const persistedValue = getPersistedApiValue(url);
+
+  if (persistedValue !== undefined) {
+    cache[url] = Promise.resolve(persistedValue);
+    return cache[url];
+  }
+
+  cache[url] = scheduleRequest(() => fetchWithRetry(url).then((value) => {
+    setPersistedApiValue(url, value);
+    return value;
+  })).catch((error) => {
     delete cache[url];
     throw error;
   });
@@ -94,6 +157,12 @@ function clearApiCache() {
   Object.keys(cache).forEach((key) => {
     delete cache[key];
   });
+
+  try {
+    localStorage.removeItem(PERSISTED_CACHE_KEY);
+  } catch (error) {
+    // Ignore cache clearing failures.
+  }
 }
 
 function getCachedApiValue(path, params = {}) {
@@ -143,6 +212,23 @@ function findAdjustedTeamRow(rows, team) {
   return normalizeArrayResponse(rows).find((row) => normalizeTeamName(row?.team) === normalizedTeam) || null;
 }
 
+function buildMetricRank(rows, team, getValue, ascending = false) {
+  const rankedRows = normalizeArrayResponse(rows)
+    .map((row) => ({ row, value: Number(getValue(row)) }))
+    .filter((entry) => Number.isFinite(entry.value))
+    .sort((left, right) => {
+      if (left.value === right.value) {
+        return String(left.row?.team || "").localeCompare(String(right.row?.team || ""));
+      }
+
+      return ascending ? left.value - right.value : right.value - left.value;
+    });
+
+  const normalizedTeam = normalizeTeamName(team);
+  const index = rankedRows.findIndex((entry) => normalizeTeamName(entry.row?.team) === normalizedTeam);
+  return index >= 0 ? index + 1 : null;
+}
+
 function getAdjustedRanks(rows, team) {
   const normalizedRows = normalizeArrayResponse(rows);
   const teamRow = findAdjustedTeamRow(normalizedRows, team);
@@ -185,6 +271,26 @@ async function getAdjustedRatingsSummary(team, season) {
   };
 }
 
+async function getTeamSeasonStatRanks(team, season) {
+  const rows = normalizeArrayResponse(await apiFetch("/stats/team/season", { season }));
+
+  const perGame = (row, getter) => {
+    const games = Number(row?.games || 0);
+    return games ? getter(row) / games : Number.NaN;
+  };
+
+  return {
+    ppg: buildMetricRank(rows, team, (row) => perGame(row, (entry) => Number(entry?.teamStats?.points?.total || 0)), false),
+    oppPpg: buildMetricRank(rows, team, (row) => perGame(row, (entry) => Number(entry?.opponentStats?.points?.total || 0)), true),
+    fgPct: buildMetricRank(rows, team, (row) => Number(row?.teamStats?.fieldGoals?.pct), false),
+    threePct: buildMetricRank(rows, team, (row) => Number(row?.teamStats?.threePointFieldGoals?.pct), false),
+    ftPct: buildMetricRank(rows, team, (row) => Number(row?.teamStats?.freeThrows?.pct), false),
+    reboundsPerGame: buildMetricRank(rows, team, (row) => perGame(row, (entry) => Number(entry?.teamStats?.rebounds?.total || 0)), false),
+    assistsPerGame: buildMetricRank(rows, team, (row) => perGame(row, (entry) => Number(entry?.teamStats?.assists || 0)), false),
+    turnoversPerGame: buildMetricRank(rows, team, (row) => perGame(row, (entry) => Number(entry?.teamStats?.turnovers?.total || 0)), true)
+  };
+}
+
 window.BBNStatsApi = {
   API_BASE,
   API_KEY,
@@ -196,5 +302,6 @@ window.BBNStatsApi = {
   normalizeArrayResponse,
   findAdjustedTeamRow,
   getAdjustedRanks,
-  getAdjustedRatingsSummary
+  getAdjustedRatingsSummary,
+  getTeamSeasonStatRanks
 };

@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-25CW7MFC29"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-25CW7MFC29');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBN Stats | Team Compare</title>
+  <meta name="description" content="Compare Kentucky seasons and any national team seasons with radar profiles, efficiency charts, and side-by-side team stats.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tables.css">
+  <link rel="stylesheet" href="css/charts.css">
+  <link rel="stylesheet" href="css/print.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .selector-grid,
+    .quick-stats-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    .selector-card {
+      min-height: 236px;
+    }
+
+    .selector-card__controls,
+    .slot-summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .selector-card__actions,
+    .view-tabs,
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .compare-select,
+    .compare-search__input {
+      width: 100%;
+      border: 1px solid rgba(74, 144, 217, 0.24);
+      border-radius: 12px;
+      background: rgba(13, 31, 58, 0.92);
+      color: var(--text-primary);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .compare-search__results {
+      display: grid;
+      gap: 8px;
+    }
+
+    .compare-search__result {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid rgba(74, 144, 217, 0.16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-primary);
+      text-align: left;
+    }
+
+    .compare-search__result:hover,
+    .compare-search__result:focus-visible {
+      border-color: rgba(74, 144, 217, 0.34);
+      background: rgba(74, 144, 217, 0.12);
+      outline: none;
+    }
+
+    .compare-search__meta {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .comparison-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .comparison-table th:first-child,
+    .comparison-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      min-width: 180px;
+      background: #101b34;
+    }
+
+    .comparison-table td.is-best {
+      color: var(--uk-light-blue);
+      font-weight: 700;
+    }
+
+    .chart-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    #team-radar-frame {
+      min-height: 340px;
+    }
+
+    .profile-score {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .profile-score__row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 108px minmax(0, 1fr) 44px;
+      align-items: center;
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+    }
+
+    .profile-score__bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .profile-score__fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--uk-light-blue);
+    }
+
+    .compare-helper {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="team-compare">
+  <main id="main-content" class="page-shell">
+    <div class="export-buttons" style="margin-bottom: 24px;">
+      <button class="btn btn--secondary" type="button" data-export-image data-export-target="main-content">Save as Image</button>
+      <button class="btn btn--ghost" type="button" data-print-page>Print</button>
+    </div>
+
+    <section class="section">
+      <div class="hero-banner">
+        <span class="eyebrow">Team Comparison</span>
+        <h1 class="hero-title">Team Season Comparison Tool</h1>
+        <p class="lead">Compare Kentucky seasons or any national team seasons side by side across offense, defense, shooting, rebounding, and turnover profile.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Compare Teams</h2>
+          <p class="section-copy">Start with Kentucky seasons, then swap any slot to a national team and season.</p>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn--secondary" type="button" id="add-slot-btn">Add Team</button>
+          <button class="btn btn--ghost" type="button" id="copy-link-btn">Copy Link</button>
+        </div>
+      </div>
+      <div id="selector-grid" class="selector-grid"></div>
+    </section>
+
+    <section class="section">
+      <div id="compare-empty" class="compare-helper">Select at least one team season to start building a comparison.</div>
+      <div id="compare-content" hidden>
+        <div class="comparison-toolbar">
+          <div class="view-tabs">
+            <button class="btn btn--secondary is-active" type="button" data-compare-tab="overview">Overview</button>
+            <button class="btn btn--ghost" type="button" data-compare-tab="factors">Four Factors</button>
+            <button class="btn btn--ghost" type="button" data-compare-tab="shooting">Shooting</button>
+            <button class="btn btn--ghost" type="button" data-compare-tab="ratings">Ratings</button>
+          </div>
+          <div class="hero-support" id="compare-status">Loading comparison...</div>
+        </div>
+
+        <div id="quick-stats-grid" class="quick-stats-grid" style="margin-bottom: 20px;"></div>
+
+        <div class="table-shell" style="margin-bottom: 24px;">
+          <div class="table-responsive">
+            <table class="data-table comparison-table">
+              <thead id="comparison-head"></thead>
+              <tbody id="comparison-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <section class="chart-shell">
+            <div class="chart-header">
+              <div>
+                <h2 class="chart-title">Radar Profile</h2>
+                <p class="chart-copy">Offense, defense, shooting, rebounding, and turnover profile on one view.</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-frame" id="team-radar-frame">
+                <canvas id="team-radar-chart" aria-label="Team comparison radar chart"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <section class="chart-shell">
+            <div class="chart-header">
+              <div>
+                <h2 class="chart-title">Efficiency Split</h2>
+                <p class="chart-copy">Grouped bars for scoring, prevention, net rating, and pace.</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-frame" id="team-bar-frame">
+                <canvas id="team-bar-chart" aria-label="Team comparison bar chart"></canvas>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/print.js"></script>
+  <script>
+    const MAX_SLOTS = 4;
+    const TEAM_COMPARE_SEASONS = Array.from({ length: 2027 - 2000 + 1 }, (_, index) => 2027 - index);
+    const SLOT_KEYS = ["t1", "t2", "t3", "t4"];
+    const SLOT_COLORS = ["#3B82F6", "#EF4444", "#F59E0B", "#10B981"];
+    const DEFAULT_SLOTS = [
+      { team: "Kentucky", season: 2024, searchQuery: "" },
+      { team: "Kentucky", season: 2025, searchQuery: "" },
+      { team: "Kentucky", season: 2026, searchQuery: "" },
+      { team: "", season: 2026, searchQuery: "" }
+    ];
+    const TAB_DEFS = {
+      overview: [
+        { key: "record", label: "Record", format: "text", higherBetter: null },
+        { key: "games", label: "Games", format: "int", higherBetter: true },
+        { key: "ppg", label: "PPG", format: "num", higherBetter: true },
+        { key: "oppPpg", label: "Opp PPG", format: "num", higherBetter: false },
+        { key: "scoringMargin", label: "Margin", format: "signed", higherBetter: true },
+        { key: "assistsPerGame", label: "APG", format: "num", higherBetter: true },
+        { key: "reboundsPerGame", label: "RPG", format: "num", higherBetter: true },
+        { key: "turnoversPerGame", label: "TO/G", format: "num", higherBetter: false },
+        { key: "pace", label: "Pace", format: "num", higherBetter: true }
+      ],
+      factors: [
+        { key: "effectiveFieldGoalPct", label: "eFG%", format: "pct", higherBetter: true },
+        { key: "oppEffectiveFieldGoalPct", label: "Opp eFG%", format: "pct", higherBetter: false },
+        { key: "turnoverRatio", label: "TOV%", format: "pct", higherBetter: false },
+        { key: "oppTurnoverRatio", label: "Opp TOV%", format: "pct", higherBetter: true },
+        { key: "offensiveReboundPct", label: "OReb%", format: "pct", higherBetter: true },
+        { key: "oppOffensiveReboundPct", label: "Opp OReb%", format: "pct", higherBetter: false },
+        { key: "freeThrowRate", label: "FT Rate", format: "num", higherBetter: true },
+        { key: "oppFreeThrowRate", label: "Opp FT Rate", format: "num", higherBetter: false }
+      ],
+      shooting: [
+        { key: "fgPct", label: "FG%", format: "pct", higherBetter: true },
+        { key: "threePct", label: "3P%", format: "pct", higherBetter: true },
+        { key: "ftPct", label: "FT%", format: "pct", higherBetter: true },
+        { key: "dunkAttemptsPerGame", label: "Dunk Att/G", format: "num", higherBetter: true },
+        { key: "layupAttemptsPerGame", label: "Layup Att/G", format: "num", higherBetter: true },
+        { key: "midAttemptsPerGame", label: "Mid Att/G", format: "num", higherBetter: false },
+        { key: "threeAttemptsPerGame", label: "3P Att/G", format: "num", higherBetter: true },
+        { key: "assistedPct", label: "Assisted%", format: "pct", higherBetter: true }
+      ],
+      ratings: [
+        { key: "adjustedOffense", label: "Adj Offense", format: "num", higherBetter: true },
+        { key: "adjustedDefense", label: "Adj Defense", format: "num", higherBetter: false },
+        { key: "adjustedNet", label: "Adj Net", format: "signed", higherBetter: true },
+        { key: "offenseRank", label: "Off Rank", format: "rank", higherBetter: false },
+        { key: "defenseRank", label: "Def Rank", format: "rank", higherBetter: false },
+        { key: "netRank", label: "Net Rank", format: "rank", higherBetter: false },
+        { key: "elo", label: "Elo", format: "int", higherBetter: true }
+      ]
+    };
+
+    let visibleSlots = 3;
+    let currentTab = "overview";
+    let slots = DEFAULT_SLOTS.map((slot) => ({ ...slot }));
+    let teamCompareState = {
+      seasonPools: new Map(),
+      selectedTeams: []
+    };
+
+    function getHelpers() {
+      return {
+        api: window.BBNStatsApi || {},
+        utils: window.BBNStatsUtils || {},
+        charts: window.BBNStatsCharts || {},
+        printer: window.BBNStatsPrint || {}
+      };
+    }
+
+    function safeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.value)) return value.value;
+      return [];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function fmtPct(value) {
+      return getHelpers().utils.fmtPct ? getHelpers().utils.fmtPct(value) : `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function fmtNum(value, digits = 1) {
+      return getHelpers().utils.fmtNum ? getHelpers().utils.fmtNum(value, digits) : Number(value || 0).toFixed(digits);
+    }
+
+    function normalizeTeamName(team) {
+      const normalizer = getHelpers().utils.normalizeTeamName;
+      return typeof normalizer === "function"
+        ? normalizer(team)
+        : String(team || "").trim().toLowerCase();
+    }
+
+    function seasonLabel(season) {
+      return `${season - 1}-${String(season).slice(-2)}`;
+    }
+
+    function perGame(total, games) {
+      const totalNum = Number(total || 0);
+      const gamesNum = Number(games || 0);
+      return gamesNum ? totalNum / gamesNum : 0;
+    }
+
+    function getTeamTotals(row) {
+      return row?.teamStats || {};
+    }
+
+    function getOpponentTotals(row) {
+      return row?.opponentStats || {};
+    }
+
+    function getRecordLabel(row) {
+      const wins = Number(row?.wins || row?.record?.wins || 0);
+      const losses = Number(row?.losses || row?.record?.losses || 0);
+      return `${wins}-${losses}`;
+    }
+
+    function getAdjustedValue(row, key) {
+      if (key === "offense") return Number(row?.offensiveRating ?? row?.offRtg ?? 0);
+      if (key === "defense") return Number(row?.defensiveRating ?? row?.defRtg ?? 0);
+      const off = getAdjustedValue(row, "offense");
+      const def = getAdjustedValue(row, "defense");
+      return Number(row?.netRating ?? (off - def));
+    }
+
+    function getShotAttempts(stat, games) {
+      return perGame(stat?.attempted, games);
+    }
+
+    function findTeamRow(rows, team) {
+      const normalized = normalizeTeamName(team);
+      return safeArray(rows).find((row) => normalizeTeamName(row?.team) === normalized) || null;
+    }
+
+    function getTeamOptions(pool) {
+      return safeArray(pool?.teamRows)
+        .map((row) => ({
+          team: row.team || "",
+          conference: row.conference || "",
+          record: getRecordLabel(row),
+          searchText: normalizeTeamName(`${row.team || ""} ${row.conference || ""}`)
+        }))
+        .filter((team) => team.team)
+        .sort((left, right) => left.team.localeCompare(right.team));
+    }
+
+    function rankAdjustedRows(rows) {
+      const normalizedRows = safeArray(rows);
+      const rankFor = (getter, ascending = false) => normalizedRows
+        .map((row) => ({ row, value: Number(getter(row)) }))
+        .filter((entry) => Number.isFinite(entry.value))
+        .sort((left, right) => {
+          if (left.value === right.value) {
+            return String(left.row?.team || "").localeCompare(String(right.row?.team || ""));
+          }
+          return ascending ? left.value - right.value : right.value - left.value;
+        })
+        .reduce((map, entry, index) => {
+          map.set(normalizeTeamName(entry.row?.team), index + 1);
+          return map;
+        }, new Map());
+
+      return {
+        offense: rankFor((row) => getAdjustedValue(row, "offense")),
+        defense: rankFor((row) => getAdjustedValue(row, "defense"), true),
+        net: rankFor((row) => getAdjustedValue(row, "net"))
+      };
+    }
+
+    async function loadSeasonPool(season) {
+      if (teamCompareState.seasonPools.has(season)) {
+        return teamCompareState.seasonPools.get(season);
+      }
+
+      const api = getHelpers().api;
+      const [teamResponse, adjustedResponse] = await Promise.all([
+        api.apiFetch("/stats/team/season", { season }),
+        api.apiFetch("/ratings/adjusted", { season })
+      ]);
+      const pool = {
+        season,
+        teamRows: safeArray(teamResponse),
+        adjustedRows: safeArray(adjustedResponse),
+        adjustedRanks: rankAdjustedRows(safeArray(adjustedResponse))
+      };
+      teamCompareState.seasonPools.set(season, pool);
+      return pool;
+    }
+
+    function getSeasonPool(season) {
+      return teamCompareState.seasonPools.get(season) || {
+        season,
+        teamRows: [],
+        adjustedRows: [],
+        adjustedRanks: { offense: new Map(), defense: new Map(), net: new Map() }
+      };
+    }
+
+    function getSearchMatches(index, pool) {
+      const query = normalizeTeamName(slots[index]?.searchQuery || "");
+      if (!query) return [];
+      return getTeamOptions(pool)
+        .filter((team) => team.searchText.includes(query))
+        .slice(0, 6);
+    }
+
+    function parseUrlState() {
+      const params = new URLSearchParams(window.location.search);
+      const nextSlots = DEFAULT_SLOTS.map((slot) => ({ ...slot }));
+      let highestUsed = 0;
+
+      SLOT_KEYS.forEach((key, index) => {
+        const raw = params.get(key);
+        if (!raw) return;
+        const [teamText, seasonText] = raw.split(":");
+        const team = decodeURIComponent(teamText || "").trim();
+        if (!team) return;
+        nextSlots[index] = {
+          team,
+          season: Number(seasonText || nextSlots[index].season),
+          searchQuery: ""
+        };
+        highestUsed = Math.max(highestUsed, index + 1);
+      });
+
+      visibleSlots = Math.max(2, Math.min(MAX_SLOTS, Number(params.get("slots") || highestUsed || 3)));
+      slots = nextSlots;
+    }
+
+    function syncUrlState() {
+      const url = new URL(window.location.href);
+      url.search = "";
+      SLOT_KEYS.forEach((key, index) => {
+        if (slots[index].team) {
+          url.searchParams.set(key, `${encodeURIComponent(slots[index].team)}:${slots[index].season}`);
+        }
+      });
+      url.searchParams.set("slots", String(visibleSlots));
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    function createEmptySlot() {
+      return { team: "", season: getHelpers().utils.getSeason?.() || 2026, searchQuery: "" };
+    }
+
+    function renderSelectorGrid() {
+      const container = document.getElementById("selector-grid");
+      container.innerHTML = Array.from({ length: visibleSlots }, (_, index) => {
+        const slot = slots[index];
+        const pool = getSeasonPool(slot.season);
+        const teams = getTeamOptions(pool);
+        const selected = teams.find((team) => normalizeTeamName(team.team) === normalizeTeamName(slot.team));
+        const matches = getSearchMatches(index, pool);
+
+        return `
+          <article class="card selector-card">
+            <div class="metric-label">Slot ${index + 1}</div>
+            <div class="slot-summary">
+              <div class="card-title">${escapeHtml(selected?.team || slot.team || "Select a team")}</div>
+              <div class="hero-support">${escapeHtml(selected ? `${selected.conference || "Team"} | ${selected.record} | ${seasonLabel(slot.season)}` : "Choose a season and team")}</div>
+            </div>
+            <div class="selector-card__controls">
+              <label>
+                <span class="metric-label">Season</span>
+                <select class="compare-select" data-slot-season="${index}">
+                  ${TEAM_COMPARE_SEASONS.map((season) => `<option value="${season}"${season === slot.season ? " selected" : ""}>${season}</option>`).join("")}
+                </select>
+              </label>
+              <label>
+                <span class="metric-label">Team</span>
+                <select class="compare-select" data-slot-team="${index}">
+                  <option value="">Select team</option>
+                  ${teams.map((team) => `<option value="${escapeHtml(team.team)}"${normalizeTeamName(team.team) === normalizeTeamName(slot.team) ? " selected" : ""}>${escapeHtml(`${team.team} | ${team.conference || "Team"}`)}</option>`).join("")}
+                </select>
+              </label>
+              <label>
+                <span class="metric-label">Search Nationally</span>
+                <input class="compare-search__input" type="search" value="${escapeHtml(slot.searchQuery || "")}" data-slot-search="${index}" placeholder="Search any team this season">
+              </label>
+              ${matches.length ? `
+                <div class="compare-search__results">
+                  ${matches.map((team) => `
+                    <button class="compare-search__result" type="button" data-slot-search-select="${index}" data-team="${escapeHtml(team.team)}">
+                      <div>${escapeHtml(team.team)}</div>
+                      <div class="compare-search__meta">${escapeHtml(`${team.conference || "Team"} | ${team.record}`)}</div>
+                    </button>
+                  `).join("")}
+                </div>
+              ` : ""}
+            </div>
+            <div class="selector-card__actions">
+              <button class="btn btn--secondary" type="button" data-add-after="${index}">Add Team</button>
+              <button class="btn btn--ghost" type="button" data-clear-slot="${index}">Clear</button>
+              ${visibleSlots > 2 ? `<button class="btn btn--ghost" type="button" data-remove-slot="${index}">Remove Slot</button>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    async function refreshSelectorPools() {
+      const seasons = Array.from(new Set(slots.slice(0, visibleSlots).map((slot) => slot.season)));
+      try {
+        await Promise.all(seasons.map((season) => loadSeasonPool(season)));
+      } finally {
+        renderSelectorGrid();
+      }
+    }
+
+    function pctScale(value, min, max, lowerBetter = false) {
+      const num = Number(value);
+      if (!Number.isFinite(num) || max === min) return 0;
+      const raw = lowerBetter ? (max - num) / (max - min) : (num - min) / (max - min);
+      return Math.max(0, Math.min(100, raw * 100));
+    }
+
+    function buildTeamProfile(values) {
+      return {
+        offense: Math.round(
+          pctScale(values.ppg, 58, 88) * 0.30 +
+          pctScale(values.adjustedOffense, 90, 125) * 0.35 +
+          pctScale(values.effectiveFieldGoalPct, 0.43, 0.60) * 0.20 +
+          pctScale(values.assistTurnoverRatio, 0.8, 1.8) * 0.15
+        ),
+        defense: Math.round(
+          pctScale(values.oppPpg, 58, 88, true) * 0.24 +
+          pctScale(values.adjustedDefense, 88, 120, true) * 0.36 +
+          pctScale(values.oppEffectiveFieldGoalPct, 0.42, 0.60, true) * 0.24 +
+          pctScale(values.oppTurnoverRatio, 0.12, 0.25) * 0.16
+        ),
+        shooting: Math.round(
+          pctScale(values.effectiveFieldGoalPct, 0.43, 0.60) * 0.32 +
+          pctScale(values.threePct, 0.28, 0.42) * 0.26 +
+          pctScale(values.fgPct, 0.39, 0.53) * 0.22 +
+          pctScale(values.ftPct, 0.62, 0.82) * 0.20
+        ),
+        rebounding: Math.round(
+          pctScale(values.reboundsPerGame, 28, 44) * 0.34 +
+          pctScale(values.reboundingMargin, -6, 10) * 0.34 +
+          pctScale(values.offensiveReboundPct, 0.20, 0.40) * 0.32
+        ),
+        turnover: Math.round(
+          pctScale(values.turnoversPerGame, 8, 17, true) * 0.36 +
+          pctScale(values.turnoverRatio, 0.12, 0.24, true) * 0.34 +
+          pctScale(values.assistTurnoverRatio, 0.8, 1.9) * 0.30
+        )
+      };
+    }
+
+    function normalizeSelectedTeam(slotIndex, teamRow, shootingRow, adjustedRow, eloRow, pool) {
+      const team = getTeamTotals(teamRow);
+      const opp = getOpponentTotals(teamRow);
+      const games = Number(teamRow?.games || 0);
+      const normalizedTeam = normalizeTeamName(teamRow?.team);
+      const adjustedOffense = getAdjustedValue(adjustedRow, "offense");
+      const adjustedDefense = getAdjustedValue(adjustedRow, "defense");
+      const adjustedNet = getAdjustedValue(adjustedRow, "net");
+      const assists = perGame(team?.assists, games);
+      const turnovers = perGame(team?.turnovers?.total, games);
+      const rebounds = perGame(team?.rebounds?.total, games);
+      const oppRebounds = perGame(opp?.rebounds?.total, games);
+      const ppg = perGame(team?.points?.total, games);
+      const oppPpg = perGame(opp?.points?.total, games);
+      const values = {
+        record: getRecordLabel(teamRow),
+        games,
+        ppg,
+        oppPpg,
+        scoringMargin: ppg - oppPpg,
+        assistsPerGame: assists,
+        reboundsPerGame: rebounds,
+        reboundingMargin: rebounds - oppRebounds,
+        turnoversPerGame: turnovers,
+        assistTurnoverRatio: turnovers ? assists / turnovers : 0,
+        pace: Number(teamRow?.pace || 0),
+        fgPct: Number(team?.fieldGoals?.pct || 0),
+        threePct: Number(team?.threePointFieldGoals?.pct || 0),
+        ftPct: Number(team?.freeThrows?.pct || 0),
+        effectiveFieldGoalPct: Number(team?.fourFactors?.effectiveFieldGoalPct || 0),
+        oppEffectiveFieldGoalPct: Number(opp?.fourFactors?.effectiveFieldGoalPct || 0),
+        turnoverRatio: Number(team?.fourFactors?.turnoverRatio || 0),
+        oppTurnoverRatio: Number(opp?.fourFactors?.turnoverRatio || 0),
+        offensiveReboundPct: Number(team?.fourFactors?.offensiveReboundPct || 0),
+        oppOffensiveReboundPct: Number(opp?.fourFactors?.offensiveReboundPct || 0),
+        freeThrowRate: Number(team?.fourFactors?.freeThrowRate || 0),
+        oppFreeThrowRate: Number(opp?.fourFactors?.freeThrowRate || 0),
+        dunkAttemptsPerGame: getShotAttempts(shootingRow?.dunks, games),
+        layupAttemptsPerGame: getShotAttempts(shootingRow?.layups, games),
+        midAttemptsPerGame: getShotAttempts(shootingRow?.twoPointJumpers, games),
+        threeAttemptsPerGame: getShotAttempts(shootingRow?.threePointJumpers, games),
+        assistedPct: Number(shootingRow?.assistedPct || 0),
+        adjustedOffense,
+        adjustedDefense,
+        adjustedNet,
+        offenseRank: pool.adjustedRanks.offense.get(normalizedTeam) || 0,
+        defenseRank: pool.adjustedRanks.defense.get(normalizedTeam) || 0,
+        netRank: pool.adjustedRanks.net.get(normalizedTeam) || 0,
+        elo: Number(eloRow?.elo ?? eloRow?.rating ?? 0)
+      };
+
+      values.profile = buildTeamProfile(values);
+
+      return {
+        slotIndex,
+        season: slots[slotIndex].season,
+        team: teamRow?.team || slots[slotIndex].team,
+        conference: teamRow?.conference || "",
+        values,
+        header: `${teamRow?.team || slots[slotIndex].team} ${slots[slotIndex].season}`
+      };
+    }
+
+    async function loadSelectedTeams() {
+      const activeSlots = slots.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.team);
+
+      if (!activeSlots.length) {
+        teamCompareState.selectedTeams = [];
+        renderCompareState();
+        return;
+      }
+
+      await Promise.all(Array.from(new Set(activeSlots.map((slot) => slot.season))).map((season) => loadSeasonPool(season)));
+      const teams = await Promise.all(activeSlots.map(async (slot) => {
+        const pool = getSeasonPool(slot.season);
+        const teamRow = findTeamRow(pool.teamRows, slot.team);
+        if (!teamRow) return null;
+        const [shootingResponse, eloResponse] = await Promise.allSettled([
+          getHelpers().api.apiFetch("/stats/team/shooting/season", { team: teamRow.team, season: slot.season }),
+          getHelpers().api.apiFetch("/ratings/elo", { team: teamRow.team, season: slot.season })
+        ]);
+        return normalizeSelectedTeam(
+          slot.index,
+          teamRow,
+          shootingResponse.status === "fulfilled" ? safeArray(shootingResponse.value)[0] || {} : {},
+          findTeamRow(pool.adjustedRows, teamRow.team) || {},
+          eloResponse.status === "fulfilled" ? safeArray(eloResponse.value)[0] || {} : {},
+          pool
+        );
+      }));
+
+      teamCompareState.selectedTeams = teams.filter(Boolean);
+      renderCompareState();
+    }
+
+    function formatCell(value, format) {
+      if (format === "pct") return fmtPct(value);
+      if (format === "int") return String(Math.round(Number(value || 0)));
+      if (format === "rank") return value ? `#${Math.round(Number(value))}` : "--";
+      if (format === "signed") {
+        const num = Number(value || 0);
+        return `${num > 0 ? "+" : ""}${fmtNum(num, 1)}`;
+      }
+      if (format === "num") return fmtNum(value, 1);
+      return String(value ?? "--");
+    }
+
+    function renderQuickStats() {
+      const target = document.getElementById("quick-stats-grid");
+      target.innerHTML = teamCompareState.selectedTeams.map((team, index) => {
+        const profileRows = [
+          ["Offense", team.values.profile.offense],
+          ["Defense", team.values.profile.defense],
+          ["Shooting", team.values.profile.shooting],
+          ["Rebound", team.values.profile.rebounding],
+          ["Turnovers", team.values.profile.turnover]
+        ];
+
+        return `
+          <article class="card">
+            <div class="metric-label">Team ${index + 1}</div>
+            <div class="card-title">${escapeHtml(team.team)}</div>
+            <div class="hero-support">${escapeHtml(`${seasonLabel(team.season)} | ${team.conference || "Team"} | ${team.values.record}`)}</div>
+            <div class="meta-badges">
+              <span class="meta-badge" style="border-color:${SLOT_COLORS[index]}; color:${SLOT_COLORS[index]};">${escapeHtml(formatCell(team.values.adjustedNet, "signed"))} Net</span>
+              <span class="meta-badge">${escapeHtml(fmtNum(team.values.ppg, 1))} PPG</span>
+              <span class="meta-badge">${escapeHtml(fmtNum(team.values.oppPpg, 1))} Opp</span>
+            </div>
+            <div class="profile-score">
+              ${profileRows.map(([label, value]) => `
+                <div class="profile-score__row">
+                  <span>${escapeHtml(label)}</span>
+                  <span class="profile-score__bar"><span class="profile-score__fill" style="width:${Math.max(0, Math.min(100, value))}%; background:${SLOT_COLORS[index]};"></span></span>
+                  <span>${escapeHtml(value)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderComparisonTable() {
+      const teams = teamCompareState.selectedTeams;
+      const columns = TAB_DEFS[currentTab];
+      document.getElementById("comparison-head").innerHTML = `
+        <tr>
+          <th>Stat</th>
+          ${teams.map((team) => `<th>${escapeHtml(team.header)}</th>`).join("")}
+        </tr>
+      `;
+      document.getElementById("comparison-body").innerHTML = columns.map((column) => {
+        const values = teams.map((team) => team.values[column.key]);
+        let bestIndex = -1;
+        if (column.higherBetter !== null) {
+          const numericValues = values.map((value) => Number(value)).filter((value) => Number.isFinite(value));
+          if (numericValues.length) {
+            const bestValue = column.higherBetter ? Math.max(...numericValues) : Math.min(...numericValues);
+            bestIndex = values.findIndex((value) => Number(value) === bestValue);
+          }
+        }
+        return `
+          <tr>
+            <td>${escapeHtml(column.label)}</td>
+            ${values.map((value, index) => `<td class="${index === bestIndex ? "is-best" : ""}">${escapeHtml(formatCell(value, column.format))}</td>`).join("")}
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderRadarChart() {
+      const target = document.getElementById("team-radar-frame");
+      const teams = teamCompareState.selectedTeams;
+      if (!teams.length) {
+        target.innerHTML = '<div class="empty-state">Select team seasons to build the radar chart.</div>';
+        return;
+      }
+      target.innerHTML = '<canvas id="team-radar-chart" aria-label="Team comparison radar chart"></canvas>';
+      const labels = ["Offense", "Defense", "Shooting", "Rebounding", "Turnover Profile"];
+      const datasets = teams.map((team, index) => ({
+        label: team.header,
+        data: [
+          team.values.profile.offense,
+          team.values.profile.defense,
+          team.values.profile.shooting,
+          team.values.profile.rebounding,
+          team.values.profile.turnover
+        ],
+        borderColor: SLOT_COLORS[index],
+        backgroundColor: `${SLOT_COLORS[index]}26`,
+        pointBackgroundColor: SLOT_COLORS[index],
+        pointBorderColor: "#FFFFFF",
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        fill: true
+      }));
+
+      getHelpers().charts.radarChart("team-radar-chart", labels, datasets, {
+        scales: {
+          r: {
+            min: 0,
+            max: 100,
+            ticks: { display: false },
+            pointLabels: { font: { size: 11 } }
+          }
+        }
+      });
+    }
+
+    function renderBarChart() {
+      const target = document.getElementById("team-bar-frame");
+      const teams = teamCompareState.selectedTeams;
+      if (!teams.length) {
+        target.innerHTML = '<div class="empty-state">Select team seasons to build the bar chart.</div>';
+        return;
+      }
+      target.innerHTML = '<canvas id="team-bar-chart" aria-label="Team comparison bar chart"></canvas>';
+      getHelpers().charts.barChart("team-bar-chart", ["PPG", "Opp PPG", "Adj Net", "Pace"], teams.map((team, index) => ({
+        label: team.header,
+        data: [team.values.ppg, team.values.oppPpg, team.values.adjustedNet, team.values.pace],
+        backgroundColor: SLOT_COLORS[index],
+        borderColor: SLOT_COLORS[index]
+      })), {
+        scales: { y: { beginAtZero: false } }
+      });
+    }
+
+    function renderCompareState() {
+      const teams = teamCompareState.selectedTeams;
+      const empty = document.getElementById("compare-empty");
+      const content = document.getElementById("compare-content");
+      const status = document.getElementById("compare-status");
+      if (!teams.length) {
+        empty.hidden = false;
+        content.hidden = true;
+        status.textContent = "No team seasons selected";
+        return;
+      }
+      empty.hidden = true;
+      content.hidden = false;
+      status.textContent = `${teams.length} team season${teams.length === 1 ? "" : "s"} loaded`;
+      renderQuickStats();
+      renderComparisonTable();
+      renderRadarChart();
+      renderBarChart();
+    }
+
+    async function handleSlotSeasonChange(index, season) {
+      slots[index].season = Number(season);
+      slots[index].team = "";
+      slots[index].searchQuery = "";
+      syncUrlState();
+      await refreshSelectorPools();
+      await loadSelectedTeams();
+    }
+
+    async function handleSlotTeamChange(index, team) {
+      slots[index].team = team;
+      slots[index].searchQuery = team;
+      syncUrlState();
+      renderSelectorGrid();
+      await loadSelectedTeams();
+    }
+
+    function insertSlotAt(index) {
+      if (visibleSlots >= MAX_SLOTS) return false;
+      const safeIndex = Math.max(0, Math.min(visibleSlots, Number(index)));
+      slots.splice(safeIndex, 0, createEmptySlot());
+      slots = slots.slice(0, MAX_SLOTS);
+      visibleSlots += 1;
+      return true;
+    }
+
+    async function addVisibleSlot(afterIndex = visibleSlots - 1) {
+      if (visibleSlots >= MAX_SLOTS) return;
+      if (!insertSlotAt(Number(afterIndex) + 1)) return;
+      syncUrlState();
+      renderSelectorGrid();
+      await refreshSelectorPools();
+    }
+
+    async function clearSlot(index) {
+      slots[index].team = "";
+      slots[index].searchQuery = "";
+      syncUrlState();
+      renderSelectorGrid();
+      await loadSelectedTeams();
+    }
+
+    async function removeSlot(index) {
+      if (visibleSlots <= 2) return;
+      slots.splice(index, 1);
+      slots.push(createEmptySlot());
+      visibleSlots -= 1;
+      syncUrlState();
+      renderSelectorGrid();
+      await refreshSelectorPools();
+      await loadSelectedTeams();
+    }
+
+    async function copyShareLink() {
+      syncUrlState();
+      const url = window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        document.getElementById("compare-status").textContent = "Share link copied";
+      } catch (error) {
+        document.getElementById("compare-status").textContent = url;
+      }
+    }
+
+    function bindTabs() {
+      document.querySelectorAll("[data-compare-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentTab = button.dataset.compareTab;
+          document.querySelectorAll("[data-compare-tab]").forEach((item) => {
+            item.classList.remove("is-active", "btn--secondary");
+            item.classList.add("btn--ghost");
+          });
+          button.classList.add("is-active", "btn--secondary");
+          button.classList.remove("btn--ghost");
+          renderComparisonTable();
+        });
+      });
+    }
+
+    function bindStaticActions() {
+      document.getElementById("add-slot-btn").addEventListener("click", async () => {
+        await addVisibleSlot(visibleSlots - 1);
+      });
+      document.getElementById("copy-link-btn").addEventListener("click", copyShareLink);
+    }
+
+    function bindDynamicActions() {
+      document.body.addEventListener("change", async (event) => {
+        const seasonSelect = event.target.closest("[data-slot-season]");
+        if (seasonSelect) {
+          await handleSlotSeasonChange(Number(seasonSelect.dataset.slotSeason), seasonSelect.value);
+          return;
+        }
+        const teamSelect = event.target.closest("[data-slot-team]");
+        if (teamSelect) {
+          await handleSlotTeamChange(Number(teamSelect.dataset.slotTeam), teamSelect.value);
+        }
+      });
+
+      document.body.addEventListener("input", (event) => {
+        const searchInput = event.target.closest("[data-slot-search]");
+        if (!searchInput) return;
+        const index = Number(searchInput.dataset.slotSearch);
+        slots[index].searchQuery = searchInput.value;
+        renderSelectorGrid();
+        window.requestAnimationFrame(() => {
+          const replacement = document.querySelector(`[data-slot-search="${index}"]`);
+          if (replacement) {
+            replacement.focus();
+            replacement.setSelectionRange(replacement.value.length, replacement.value.length);
+          }
+        });
+      });
+
+      document.body.addEventListener("click", async (event) => {
+        const addButton = event.target.closest("[data-add-after]");
+        if (addButton) {
+          await addVisibleSlot(Number(addButton.dataset.addAfter));
+          return;
+        }
+        const clearButton = event.target.closest("[data-clear-slot]");
+        if (clearButton) {
+          await clearSlot(Number(clearButton.dataset.clearSlot));
+          return;
+        }
+        const removeButton = event.target.closest("[data-remove-slot]");
+        if (removeButton) {
+          await removeSlot(Number(removeButton.dataset.removeSlot));
+          return;
+        }
+        const searchSelectButton = event.target.closest("[data-slot-search-select]");
+        if (searchSelectButton) {
+          await handleSlotTeamChange(Number(searchSelectButton.dataset.slotSearchSelect), searchSelectButton.dataset.team || "");
+        }
+      });
+    }
+
+    async function loadTeamComparePage() {
+      parseUrlState();
+      renderSelectorGrid();
+      bindStaticActions();
+      bindDynamicActions();
+      bindTabs();
+      getHelpers().printer.bindExportButtons?.({ pageName: "team-compare", elementId: "main-content" });
+      try {
+        await refreshSelectorPools();
+        await loadSelectedTeams();
+      } catch (error) {
+        document.getElementById("compare-empty").innerHTML = `Unable to load team comparison. ${escapeHtml(error?.message || "Please try again later.")}`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadTeamComparePage);
+  </script>
+</body>
+</html>

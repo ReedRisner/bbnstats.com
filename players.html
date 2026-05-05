@@ -24,8 +24,6 @@
   <link rel="stylesheet" href="css/charts.css">
   <link rel="stylesheet" href="css/print.css">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
     .roster-hero {
       position: relative;
@@ -60,6 +58,22 @@
       gap: 16px;
     }
 
+    .player-card__identity {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .player-card__image {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
     .player-card__number {
       color: var(--uk-light-blue);
       font-family: var(--font-display);
@@ -81,7 +95,7 @@
 
     .player-card__stats {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-top: auto;
     }
@@ -191,6 +205,7 @@
       { key: "position", label: "Pos" },
       { key: "height", label: "Height" },
       { key: "weight", label: "Weight" },
+      { key: "collegePlayerRating", label: "Rating" },
       { key: "ppg", label: "PPG" },
       { key: "rpg", label: "RPG" },
       { key: "apg", label: "APG" }
@@ -290,6 +305,9 @@
               classYear: getClassYear(player, season),
               hometownLabel: hometownLabel(player),
               jerseyNumber: Number.parseInt(player.jersey, 10),
+              collegePlayerRating: getHelpers().utils.calculateCollegePlayerRating
+                ? getHelpers().utils.calculateCollegePlayerRating(statLine)
+                : 0,
               ppg: getPerGame(statLine.points, games),
               rpg: getPerGame(statLine.rebounds?.total, games),
               apg: getPerGame(statLine.assists, games),
@@ -328,15 +346,28 @@
             <a class="link-card" href="player.html?id=${encodeURIComponent(player.id)}&season=${encodeURIComponent(getHelpers().utils.getSeason())}">
               <article class="card player-card stack stack--lg">
                 <div class="player-card__top">
-                  <div>
-                    <div class="metric-label">${escapeHtml(player.classYear)}</div>
-                    <div class="player-card__name">${escapeHtml(player.name)}</div>
-                    <div class="player-card__meta">${escapeHtml(`${formatPosition(player.position)} | ${getHelpers().utils.heightInches(player.height)} | ${player.weight || "--"} lbs`)}</div>
-                    <div class="player-card__hometown">${escapeHtml(player.hometownLabel)}</div>
+                  <div class="player-card__identity">
+                    <img
+                      class="player-card__image"
+                      alt="${escapeHtml(player.name)} portrait"
+                      data-image-type="player"
+                      data-fallback-src="assets/images/players/placeholder.svg"
+                      data-image-candidates="${escapeHtml((getHelpers().utils.getPlayerImageCandidates?.(player.id) || []).join("|"))}"
+                    >
+                    <div>
+                      <div class="metric-label">${escapeHtml(player.classYear)}</div>
+                      <div class="player-card__name">${escapeHtml(player.name)}</div>
+                      <div class="player-card__meta">${escapeHtml(`${formatPosition(player.position)} | ${getHelpers().utils.heightInches(player.height)} | ${player.weight || "--"} lbs`)}</div>
+                      <div class="player-card__hometown">${escapeHtml(player.hometownLabel)}</div>
+                    </div>
                   </div>
                   <div class="player-card__number">${escapeHtml(player.jersey || "--")}</div>
                 </div>
                 <div class="player-card__stats">
+                  <div class="player-mini-stat">
+                    <div class="metric-label">Rating</div>
+                    <div class="metric-value">${escapeHtml(getHelpers().utils.fmtNum(player.collegePlayerRating, 1))}</div>
+                  </div>
                   <div class="player-mini-stat">
                     <div class="metric-label">PPG</div>
                     <div class="metric-value">${escapeHtml(player.ppg)}</div>
@@ -355,6 +386,8 @@
           `).join("")}
         </div>
       `;
+
+      getHelpers().utils.hydrateManagedImages?.(gridView);
     }
 
     function renderTableHead() {
@@ -381,6 +414,7 @@
                 position: formatPosition(player.position),
                 height: getHelpers().utils.heightInches(player.height),
                 weight: player.weight || "--",
+                collegePlayerRating: getHelpers().utils.fmtNum(player.collegePlayerRating, 1),
                 ppg: player.ppg,
                 rpg: player.rpg,
                 apg: player.apg
@@ -408,6 +442,8 @@
           return Number(player.height || 0);
         case "weight":
           return Number(player.weight || 0);
+        case "collegePlayerRating":
+          return Number(player.collegePlayerRating || 0);
         case "ppg":
           return Number(player.ppg || 0);
         case "rpg":

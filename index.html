@@ -25,8 +25,6 @@
   <link rel="stylesheet" href="css/print.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
     .dashboard-page .hero-banner {
       min-height: 360px;
@@ -175,6 +173,44 @@
       font-family: var(--font-display);
       font-size: clamp(2rem, 4vw, 3rem);
       line-height: 1;
+    }
+
+    .hero-brand-lockup,
+    .leader-identity {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .hero-team-image,
+    .leader-image {
+      object-fit: cover;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hero-team-image {
+      width: 84px;
+      height: 84px;
+    }
+
+    .leader-image {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+    }
+
+    .metric-rank-inline {
+      display: inline-block;
+      margin-left: 8px;
+      color: var(--text-secondary);
+      font-size: 0.72em;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      vertical-align: middle;
+      white-space: nowrap;
     }
 
     @media (max-width: 1024px) {
@@ -399,21 +435,21 @@
       `;
     }
 
-    function createMetricCard(label, value, meta, accentClass = "accent-blue") {
+    function createMetricCard(label, value, meta, accentClass = "accent-blue", rank = null) {
       return `
         <article class="card dashboard-stat-card metric-card">
           <div class="metric-label">${escapeHtml(label)}</div>
-          <div class="metric-value ${accentClass}">${escapeHtml(value)}</div>
+          <div class="metric-value ${accentClass}">${escapeHtml(value)}${rank ? ` <span class="metric-rank-inline">#${escapeHtml(rank)}</span>` : ""}</div>
           <div class="card-copy">${escapeHtml(meta)}</div>
         </article>
       `;
     }
 
-    function createMiniCard(label, value) {
+    function createMiniCard(label, value, rank) {
       return `
         <article class="card dashboard-mini-card metric-card">
           <div class="metric-label">${escapeHtml(label)}</div>
-          <div class="metric-value">${escapeHtml(value)}</div>
+          <div class="metric-value">${escapeHtml(value)}${rank ? ` <span class="metric-rank-inline">#${escapeHtml(rank)}</span>` : ""}</div>
         </article>
       `;
     }
@@ -473,15 +509,29 @@
     function renderHero(teamStats, rankings, season) {
       const hero = document.getElementById("hero-section");
       const latestAp = getLatestApRank(rankings);
-      const rankLabel = latestAp && latestAp.ranking ? `AP #${latestAp.ranking}` : "AP NR";
+      const utils = getHelpers().utils;
+      const resolvedTeamId = Number(teamStats?.teamId);
+      const teamImageCandidates = typeof utils.getTeamImageCandidates === "function" && Number.isFinite(resolvedTeamId)
+        ? utils.getTeamImageCandidates(resolvedTeamId)
+        : [];
+      const teamFallback = typeof utils.getFallbackImage === "function" ? utils.getFallbackImage("team") : "assets/bbn-ball-mark.svg";
 
       hero.innerHTML = `
         <div class="dashboard-hero">
           <div class="stack stack--lg">
-            <div>
-              <span class="eyebrow">Kentucky Wildcats</span>
-              <h1 class="hero-title">Kentucky Basketball</h1>
-              <p class="lead">${escapeHtml(seasonLabel(season))} stats for Kentucky Basketball</p>
+            <div class="hero-brand-lockup">
+              <img
+                class="hero-team-image"
+                alt="Kentucky team mark"
+                data-image-type="team"
+                data-fallback-src="${escapeHtml(teamFallback)}"
+                data-image-candidates="${escapeHtml(teamImageCandidates.join("|"))}"
+              >
+              <div>
+                <span class="eyebrow">Kentucky Wildcats</span>
+                <h1 class="hero-title">Kentucky Basketball</h1>
+                <p class="lead">${escapeHtml(seasonLabel(season))} stats for Kentucky Basketball</p>
+              </div>
             </div>
             <div class="inline-meta">
 
@@ -501,9 +551,11 @@
           </div>
         </div>
       `;
+
+      utils.hydrateManagedImages?.(hero);
     }
 
-    function renderRecordCards(teamStats, games) {
+    function renderRecordCards(teamStats, games, nationalRanks = {}) {
       const finalGames = safeArray(games).filter((game) => game.status === "final");
       const recordCards = document.getElementById("record-cards");
       const pointsFor = teamStats?.teamStats?.points?.total || 0;
@@ -512,22 +564,22 @@
 
       recordCards.innerHTML = [
         createMetricCard("W-L Record", `${teamStats?.wins ?? 0}-${teamStats?.losses ?? 0}`, `${gamesPlayed} total games`, "accent-blue"),
-        createMetricCard("PPG", gamesPlayed ? (pointsFor / gamesPlayed).toFixed(1) : "0.0", "Points scored per game", "accent-green"),
-        createMetricCard("Opp PPG", gamesPlayed ? (pointsAgainst / gamesPlayed).toFixed(1) : "0.0", "Points allowed per game", "accent-red"),
+        createMetricCard("PPG", gamesPlayed ? (pointsFor / gamesPlayed).toFixed(1) : "0.0", "Points scored per game", "accent-green", nationalRanks.ppg),
+        createMetricCard("Opp PPG", gamesPlayed ? (pointsAgainst / gamesPlayed).toFixed(1) : "0.0", "Points allowed per game", "accent-red", nationalRanks.oppPpg),
         createMetricCard("Current Streak", getCurrentStreak(finalGames), "Based on most recent final results", "accent-yellow")
       ].join("");
     }
 
-    function renderSummaryCards(teamStats) {
+    function renderSummaryCards(teamStats, nationalRanks = {}) {
       const container = document.getElementById("summary-cards");
       const stats = teamStats?.teamStats || {};
       container.innerHTML = [
-        createMiniCard("FG%", getHelpers().utils.fmtPct(stats.fieldGoals?.pct)),
-        createMiniCard("3P%", getHelpers().utils.fmtPct(stats.threePointFieldGoals?.pct)),
-        createMiniCard("FT%", getHelpers().utils.fmtPct(stats.freeThrows?.pct)),
-        createMiniCard("Rebounds/G", teamStats?.games ? (stats.rebounds?.total / teamStats.games).toFixed(1) : "0.0"),
-        createMiniCard("Assists/G", teamStats?.games ? (stats.assists / teamStats.games).toFixed(1) : "0.0"),
-        createMiniCard("Turnovers/G", teamStats?.games ? (stats.turnovers?.total / teamStats.games).toFixed(1) : "0.0")
+        createMiniCard("FG%", getHelpers().utils.fmtPct(stats.fieldGoals?.pct), nationalRanks.fgPct),
+        createMiniCard("3P%", getHelpers().utils.fmtPct(stats.threePointFieldGoals?.pct), nationalRanks.threePct),
+        createMiniCard("FT%", getHelpers().utils.fmtPct(stats.freeThrows?.pct), nationalRanks.ftPct),
+        createMiniCard("Rebounds/G", teamStats?.games ? (stats.rebounds?.total / teamStats.games).toFixed(1) : "0.0", nationalRanks.reboundsPerGame),
+        createMiniCard("Assists/G", teamStats?.games ? (stats.assists / teamStats.games).toFixed(1) : "0.0", nationalRanks.assistsPerGame),
+        createMiniCard("Turnovers/G", teamStats?.games ? (stats.turnovers?.total / teamStats.games).toFixed(1) : "0.0", nationalRanks.turnoversPerGame)
       ].join("");
     }
 
@@ -664,10 +716,19 @@
         <a class="link-card" href="player.html?id=${encodeURIComponent(leader.athleteId)}&season=${encodeURIComponent(getHelpers().utils.getSeason())}">
           <article class="card stack stack--lg">
             <div class="leader-card__top">
-              <div>
-                <div class="metric-label">${escapeHtml(leader.label)}</div>
-                <div class="leader-card__name">${escapeHtml(leader.name)}</div>
-                <div class="leader-card__meta">${escapeHtml(leader.position)}</div>
+              <div class="leader-identity">
+                <img
+                  class="leader-image"
+                  alt="${escapeHtml(leader.name)} portrait"
+                  data-image-type="player"
+                  data-fallback-src="assets/images/players/placeholder.svg"
+                  data-image-candidates="${escapeHtml((getHelpers().utils.getPlayerImageCandidates?.(leader.athleteId) || []).join("|"))}"
+                >
+                <div>
+                  <div class="metric-label">${escapeHtml(leader.label)}</div>
+                  <div class="leader-card__name">${escapeHtml(leader.name)}</div>
+                  <div class="leader-card__meta">${escapeHtml(leader.position)}</div>
+                </div>
               </div>
               <span class="badge badge--blue">Profile</span>
             </div>
@@ -680,6 +741,8 @@
           </article>
         </a>
       `).join("");
+
+      getHelpers().utils.hydrateManagedImages?.(container);
     }
 
     function renderRankingsChart(rankings) {
@@ -747,6 +810,7 @@
         { href: "schedule.html", title: "Schedule", copy: "Results, future games, and direct game page links." },
         { href: "stats.html", title: "Player Stats", copy: "Sortable traditional, advanced, and shooting tables." },
         { href: "team-stats.html", title: "Team Stats", copy: "Four factors, trends, and shooting breakdowns." },
+        { href: "team-compare.html", title: "Team Compare", copy: "Compare Kentucky seasons and national teams with radar profiles." },
         { href: "compare.html", title: "Compare", copy: "Side-by-side player comparison across seasons." },
         { href: "ratings.html", title: "Ratings", copy: "Adjusted efficiency and Elo tracking." }
       ];
@@ -846,6 +910,17 @@
           renderSectionError("next-game", "Unable to load next game", message);
         }
       );
+
+      if (teamStatsResponse) {
+        try {
+          const nationalRanks = await api.getTeamSeasonStatRanks?.(TEAM_NAME, season);
+          renderRecordCards(safeArray(teamStatsResponse)[0] || {}, safeArray(gamesResponse), nationalRanks || {});
+          renderSummaryCards(safeArray(teamStatsResponse)[0] || {}, nationalRanks || {});
+        } catch (error) {
+          renderRecordCards(safeArray(teamStatsResponse)[0] || {}, safeArray(gamesResponse), {});
+          renderSummaryCards(safeArray(teamStatsResponse)[0] || {}, {});
+        }
+      }
 
       await loadSection(
         () => api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),

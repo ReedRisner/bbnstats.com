@@ -25,8 +25,6 @@
   <link rel="stylesheet" href="css/print.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
   <style>
     .game-header-grid {
       display: grid;
@@ -198,6 +196,57 @@
     .lineup-players {
       max-width: 320px;
       white-space: normal;
+    }
+
+    .run-marker-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 22px 0;
+    }
+
+    .run-marker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 0 12px;
+      border: 1px solid rgba(74, 144, 217, 0.2);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .run-marker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #5CC8FF;
+      box-shadow: 0 0 0 3px rgba(92, 200, 255, 0.12);
+    }
+
+    .run-marker--kentucky {
+      border-color: rgba(39, 174, 96, 0.22);
+      color: #bcebd0;
+    }
+
+    .run-marker--kentucky::before {
+      background: #27AE60;
+      box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.13);
+    }
+
+    .run-marker--opponent {
+      border-color: rgba(231, 76, 60, 0.22);
+      color: #ffc0bc;
+    }
+
+    .run-marker--opponent::before {
+      background: #E74C3C;
+      box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.13);
     }
 
     .shotchart-panel .shot-chart__surface {
@@ -375,7 +424,7 @@
         </div>
         <div class="shot-chart">
           <div class="shot-chart__surface">
-            <canvas id="game-shot-chart" width="640" height="580" aria-label="Game shot chart"></canvas>
+            <canvas id="game-shot-chart" width="500" height="470" aria-label="Game shot chart"></canvas>
           </div>
         </div>
         <div class="table-responsive">
@@ -397,19 +446,15 @@
         <div class="chart-shell">
           <div class="chart-header">
             <div>
-              <h2 class="chart-title">Lineups</h2>
-              <p class="chart-copy">Five-man lineup units sorted by minutes played and efficiency.</p>
+              <h2 class="chart-title">Game Flow</h2>
+              <p class="chart-copy">Kentucky score margin over time, with key scoring runs marked from the play-by-play feed.</p>
             </div>
           </div>
-          <div class="box-toggle-row">
-            <button class="btn btn--secondary is-active" type="button" data-lineup-team="kentucky">Kentucky</button>
-            <button class="btn btn--ghost" type="button" data-lineup-team="opponent">Opponent</button>
-          </div>
-          <div class="table-responsive">
-            <table class="data-table sortable-table" id="lineup-table">
-              <thead id="lineup-head"></thead>
-              <tbody id="lineup-body"></tbody>
-            </table>
+          <div class="chart-wrap">
+            <div class="chart-frame">
+              <canvas id="score-margin-chart" aria-label="Score margin over time chart"></canvas>
+            </div>
+            <div id="score-margin-runs" class="run-marker-list"></div>
           </div>
         </div>
 
@@ -424,6 +469,25 @@
             <div class="chart-frame">
               <canvas id="win-probability-chart" aria-label="Win probability chart"></canvas>
             </div>
+          </div>
+        </div>
+
+        <div class="chart-shell">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">Lineups</h2>
+              <p class="chart-copy">Five-man lineup units sorted by minutes played and efficiency.</p>
+            </div>
+          </div>
+          <div class="box-toggle-row">
+            <button class="btn btn--secondary is-active" type="button" data-lineup-team="kentucky">Kentucky</button>
+            <button class="btn btn--ghost" type="button" data-lineup-team="opponent">Opponent</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table sortable-table" id="lineup-table">
+              <thead id="lineup-head"></thead>
+              <tbody id="lineup-body"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1054,6 +1118,228 @@
       });
     }
 
+    function numericValue(value) {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+
+    function getPlayScores(play) {
+      const homeScore = numericValue(play?.homeScore);
+      const awayScore = numericValue(play?.awayScore);
+      if (homeScore === null || awayScore === null) return null;
+
+      const kentuckyHome = getKentuckyHome(gameState.game);
+      return {
+        kentucky: kentuckyHome ? homeScore : awayScore,
+        opponent: kentuckyHome ? awayScore : homeScore,
+        home: homeScore,
+        away: awayScore
+      };
+    }
+
+    function getPlayTimeLabel(play, index) {
+      const period = Number(play?.period);
+      const periodText = Number.isFinite(period) && period > 0
+        ? period === 1 ? "H1" : period === 2 ? "H2" : `OT${period - 2}`
+        : "";
+
+      if (play?.clock) {
+        return `${periodText ? `${periodText} ` : ""}${play.clock}`;
+      }
+
+      if (play?.wallclock) {
+        const timestamp = new Date(play.wallclock);
+        if (!Number.isNaN(timestamp.getTime())) {
+          return timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        }
+      }
+
+      return `Play ${index + 1}`;
+    }
+
+    function comparePlaysByGameTime(a, b) {
+      const aPeriod = numericValue(a?.period) ?? 0;
+      const bPeriod = numericValue(b?.period) ?? 0;
+      if (aPeriod !== bPeriod) return aPeriod - bPeriod;
+
+      const aSeconds = numericValue(a?.secondsRemaining);
+      const bSeconds = numericValue(b?.secondsRemaining);
+      if (aSeconds !== null && bSeconds !== null && aSeconds !== bSeconds) {
+        return bSeconds - aSeconds;
+      }
+
+      return 0;
+    }
+
+    function buildScoreMarginTimeline() {
+      const sourcePlays = safeArray(gameState.plays)
+        .map((play, originalIndex) => ({ play, originalIndex }))
+        .filter(({ play }) => getPlayScores(play))
+        .sort((a, b) => comparePlaysByGameTime(a.play, b.play) || a.originalIndex - b.originalIndex);
+
+      const points = sourcePlays.map(({ play }, index) => {
+        const scores = getPlayScores(play);
+        return {
+          play,
+          label: getPlayTimeLabel(play, index),
+          margin: scores.kentucky - scores.opponent,
+          kentuckyScore: scores.kentucky,
+          opponentScore: scores.opponent
+        };
+      });
+
+      if (points.length && (points[0].kentuckyScore !== 0 || points[0].opponentScore !== 0)) {
+        points.unshift({
+          play: null,
+          label: "Start",
+          margin: 0,
+          kentuckyScore: 0,
+          opponentScore: 0
+        });
+      }
+
+      return points;
+    }
+
+    function detectKeyRuns(points) {
+      const runs = [];
+      let currentRun = null;
+
+      points.forEach((point, index) => {
+        if (!point.play) return;
+        const scoreValue = numericValue(point.play?.scoreValue);
+        if (!point.play?.scoringPlay || !scoreValue || scoreValue <= 0) return;
+
+        const previous = points[index - 1];
+        if (!previous) return;
+
+        const kentuckyDelta = point.kentuckyScore - previous.kentuckyScore;
+        const opponentDelta = point.opponentScore - previous.opponentScore;
+        const team = kentuckyDelta > opponentDelta ? "kentucky" : opponentDelta > kentuckyDelta ? "opponent" : null;
+        if (!team) return;
+
+        if (!currentRun || currentRun.team !== team) {
+          if (currentRun && currentRun.points >= 6) runs.push(currentRun);
+          currentRun = {
+            team,
+            startIndex: index,
+            endIndex: index,
+            points: scoreValue
+          };
+          return;
+        }
+
+        currentRun.points += scoreValue;
+        currentRun.endIndex = index;
+      });
+
+      if (currentRun && currentRun.points >= 6) runs.push(currentRun);
+
+      return runs
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 5)
+        .sort((a, b) => a.endIndex - b.endIndex);
+    }
+
+    function renderScoreMarginChart() {
+      const points = buildScoreMarginTimeline();
+      const shell = document.getElementById("score-margin-chart")?.closest(".chart-shell");
+      const frame = shell?.querySelector(".chart-frame");
+      const runsEl = document.getElementById("score-margin-runs");
+
+      if (!points.length) {
+        if (frame) frame.innerHTML = '<div class="empty-state">No score timeline data available for this game.</div>';
+        if (runsEl) runsEl.innerHTML = "";
+        return;
+      }
+
+      const labels = points.map((point) => point.label);
+      const margins = points.map((point) => point.margin);
+      const runs = detectKeyRuns(points);
+      const runByEndIndex = new Map(runs.map((run) => [run.endIndex, run]));
+      const runMarkerData = points.map((point, index) => runByEndIndex.has(index) ? point.margin : null);
+
+      getHelpers().charts.lineChart("score-margin-chart", labels, [
+        {
+          label: "Kentucky Margin",
+          data: margins,
+          borderColor: "#5CC8FF",
+          backgroundColor: "rgba(92, 200, 255, 0.12)",
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 3
+        },
+        {
+          label: "Key Runs",
+          data: runMarkerData,
+          borderColor: "transparent",
+          backgroundColor: runs.map((run) => run.team === "kentucky" ? "#27AE60" : "#E74C3C"),
+          pointBackgroundColor(context) {
+            const run = runByEndIndex.get(context.dataIndex);
+            return run?.team === "kentucky" ? "#27AE60" : "#E74C3C";
+          },
+          pointBorderColor: "#FFFFFF",
+          pointRadius(context) {
+            return runByEndIndex.has(context.dataIndex) ? 6 : 0;
+          },
+          pointHoverRadius: 8,
+          showLine: false,
+          spanGaps: false
+        }
+      ], {
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title(items) {
+                const item = items[0];
+                return item ? labels[item.dataIndex] : "";
+              },
+              label(context) {
+                const point = points[context.dataIndex];
+                const run = runByEndIndex.get(context.dataIndex);
+                const marginLabel = context.parsed.y > 0 ? `UK +${context.parsed.y}` : context.parsed.y < 0 ? `UK ${context.parsed.y}` : "Tied";
+                if (run && context.dataset.label === "Key Runs") {
+                  const teamLabel = run.team === "kentucky" ? "Kentucky" : gameState.opponentName;
+                  return `${teamLabel} ${run.points}-0 run | ${marginLabel} | Score ${point.kentuckyScore}-${point.opponentScore}`;
+                }
+                return `${marginLabel} | Score ${point.kentuckyScore}-${point.opponentScore}`;
+              },
+              afterLabel(context) {
+                return points[context.dataIndex]?.play?.playText || "";
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: true,
+              maxRotation: 0,
+              maxTicksLimit: 8
+            }
+          },
+          y: {
+            beginAtZero: false,
+            ticks: {
+              callback(value) {
+                return value > 0 ? `+${value}` : value;
+              }
+            }
+          }
+        }
+      });
+
+      if (runsEl) {
+        runsEl.innerHTML = runs.length
+          ? runs.map((run) => {
+            const point = points[run.endIndex];
+            const label = run.team === "kentucky" ? "Kentucky" : gameState.opponentName;
+            return `<span class="run-marker run-marker--${run.team}">${escapeHtml(label)} ${escapeHtml(run.points)}-0 at ${escapeHtml(point.label)}</span>`;
+          }).join("")
+          : '<span class="run-marker">No 6-0 runs detected</span>';
+      }
+    }
+
     function getPlayParticipants(play) {
       const values = new Set();
       const addValue = (value) => {
@@ -1272,6 +1558,7 @@
       renderPlayerTable("opp");
       renderShotChart();
       renderLineups();
+      renderScoreMarginChart();
       renderWinProbability();
       populatePlayPlayerFilter();
       renderPlayByPlay();

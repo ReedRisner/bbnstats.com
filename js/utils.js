@@ -247,6 +247,161 @@ function fmtNum(val, decimals = 1) {
   return Number(val).toFixed(decimals);
 }
 
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function norm(value, low, high) {
+  const num = numberOrNull(value);
+
+  if (num === null || high === low) {
+    return 0;
+  }
+
+  return clamp01((num - low) / (high - low));
+}
+
+function normLowerBetter(value, low, high) {
+  const num = numberOrNull(value);
+
+  if (num === null || num <= 0 || high === low) {
+    return 0;
+  }
+
+  return clamp01((high - num) / (high - low));
+}
+
+function firstNumber(...values) {
+  for (const value of values) {
+    const num = numberOrNull(value);
+
+    if (num !== null) {
+      return num;
+    }
+  }
+
+  return null;
+}
+
+function perGameValue(total, games, fallback) {
+  const fallbackNum = numberOrNull(fallback);
+
+  if (fallbackNum !== null) {
+    return fallbackNum;
+  }
+
+  const totalNum = numberOrNull(total);
+  const gamesNum = numberOrNull(games);
+
+  if (totalNum === null || !gamesNum) {
+    return null;
+  }
+
+  return totalNum / gamesNum;
+}
+
+function percentForRating(...values) {
+  const num = firstNumber(...values);
+
+  if (num === null) {
+    return null;
+  }
+
+  return Math.abs(num) <= 1 ? num * 100 : num;
+}
+
+function calculateCollegePlayerRating(player = {}) {
+  const games = firstNumber(player.games, player.gamesPlayed);
+  const winShares = typeof player.winShares === "object"
+    ? firstNumber(player.winShares?.total, player.winShares?.value)
+    : firstNumber(player.winShares);
+  const wsPer40 = typeof player.winShares === "object"
+    ? firstNumber(player.winShares?.totalPer40, player.wsPer40)
+    : firstNumber(player.wsPer40);
+
+  const ratingPlayer = {
+    ppg: perGameValue(player.points, games, player.ppg, player.pointsPerGame),
+    rpg: perGameValue(player.rebounds?.total ?? player.rebounds, games, player.rpg, player.reboundsPerGame),
+    apg: perGameValue(player.assists, games, player.apg, player.assistsPerGame),
+    spg: perGameValue(player.steals, games, player.spg, player.stealsPerGame),
+    bpg: perGameValue(player.blocks, games, player.bpg, player.blocksPerGame),
+    mpg: perGameValue(player.minutes, games, player.mpg, player.minutesPerGame),
+    tsPercent: percentForRating(player.tsPercent, player.trueShootingPct),
+    efgPercent: percentForRating(player.efgPercent, player.effectiveFieldGoalPct),
+    fgPercent: percentForRating(player.fgPercent, player.fieldGoals?.pct),
+    threePercent: percentForRating(player.threePercent, player.threePointFieldGoals?.pct),
+    ftPercent: percentForRating(player.ftPercent, player.freeThrows?.pct),
+    ftRate: percentForRating(player.ftRate, player.freeThrowRate),
+    usagePercent: percentForRating(player.usagePercent, player.usage),
+    offRtg: firstNumber(player.offRtg, player.offensiveRating),
+    defRtg: firstNumber(player.defRtg, player.defensiveRating),
+    netRtg: firstNumber(player.netRtg, player.netRating),
+    porpag: firstNumber(player.porpag, player.PORPAG),
+    winShares,
+    wsPer40,
+    astTo: firstNumber(player.astTo, player.assistsTurnoverRatio)
+  };
+
+  const production =
+    0.45 * norm(ratingPlayer.ppg, 4, 20) +
+    0.18 * norm(ratingPlayer.rpg, 1, 7) +
+    0.15 * norm(ratingPlayer.apg, 0.5, 5) +
+    0.12 * norm(ratingPlayer.spg, 0.3, 2.2) +
+    0.05 * norm(ratingPlayer.bpg, 0, 1.2) +
+    0.05 * norm(ratingPlayer.mpg, 12, 34);
+
+  const efficiency =
+    0.25 * norm(ratingPlayer.tsPercent, 48, 62) +
+    0.20 * norm(ratingPlayer.efgPercent, 43, 58) +
+    0.15 * norm(ratingPlayer.fgPercent, 38, 55) +
+    0.15 * norm(ratingPlayer.threePercent, 25, 40) +
+    0.10 * norm(ratingPlayer.ftPercent, 60, 85) +
+    0.15 * norm(ratingPlayer.ftRate, 15, 55);
+
+  const advancedImpact =
+    0.18 * norm(ratingPlayer.usagePercent, 16, 30) +
+    0.20 * norm(ratingPlayer.offRtg, 95, 125) +
+    0.15 * normLowerBetter(ratingPlayer.defRtg, 92, 115) +
+    0.17 * norm(ratingPlayer.netRtg, -5, 15) +
+    0.12 * norm(ratingPlayer.porpag, 0, 5.5) +
+    0.10 * norm(ratingPlayer.winShares, 0.5, 5) +
+    0.08 * norm(ratingPlayer.wsPer40, 0.06, 0.18);
+
+  const defense =
+    0.45 * norm(ratingPlayer.spg, 0.3, 2.2) +
+    0.20 * norm(ratingPlayer.bpg, 0, 1.2) +
+    0.20 * normLowerBetter(ratingPlayer.defRtg, 92, 115) +
+    0.15 * norm(ratingPlayer.netRtg, -5, 15);
+
+  const playmaking =
+    0.55 * norm(ratingPlayer.astTo, 0.6, 2.5) +
+    0.30 * norm(ratingPlayer.apg, 0.5, 5) +
+    0.15 * norm(ratingPlayer.usagePercent, 16, 30);
+
+  const rating =
+    100 *
+    (
+      0.30 * production +
+      0.25 * efficiency +
+      0.25 * advancedImpact +
+      0.12 * defense +
+      0.08 * playmaking
+    );
+
+  const generousRating = rating + ((100 - rating) * 0.30);
+
+  return Math.round(Math.min(100, generousRating) * 10) / 10;
+}
+
 function colorStat(val, low, mid, high) {
   const num = Number(val);
 
@@ -441,6 +596,7 @@ window.BBNStatsUtils = {
   setSeason,
   fmtPct,
   fmtNum,
+  calculateCollegePlayerRating,
   colorStat,
   heightInches,
   formatDate,
