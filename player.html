@@ -32,9 +32,35 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
       gap: 24px;
       align-items: end;
+    }
+
+    .player-identity {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+    }
+
+    .player-headshot {
+      width: 132px;
+      height: 132px;
+      object-fit: cover;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: var(--shadow-md);
+      flex-shrink: 0;
+    }
+
+    .player-headshot--number {
+      display: grid;
+      place-items: center;
+      color: var(--uk-light-blue);
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 6vw, 4.4rem);
+      line-height: 1;
     }
 
     .player-header-name {
@@ -99,8 +125,31 @@
       gap: 24px;
     }
 
+    .radar-insights {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .radar-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
     .profile-chart-card {
       min-height: 100%;
+    }
+
+    .radar-section-card .chart-frame {
+      min-height: 440px;
     }
 
     .shooting-table td,
@@ -318,7 +367,7 @@
   <script src="js/shotchart.js"></script>
   <script src="js/print.js"></script>
   <script>
-    const TEAM_NAME = "Kentucky";
+    const DEFAULT_TEAM_NAME = "Kentucky";
     let gameLogRows = [];
     let gameLogSort = { key: "date", asc: true };
     let trendChartMode = "points";
@@ -365,6 +414,10 @@
       }
 
       return typeof getHelpers().utils.getSeason === "function" ? getHelpers().utils.getSeason() : 2026;
+    }
+
+    function getPageTeam() {
+      return getQueryParam("team") || DEFAULT_TEAM_NAME;
     }
 
     function seasonLabel(season) {
@@ -554,14 +607,38 @@
 
     function renderHeader(rosterPlayer, statLine, season) {
       const header = document.getElementById("player-header");
+      const utils = getHelpers().utils;
+      const teamName = statLine?.team || rosterPlayer?.team || getPageTeam();
+      const shouldUseImage = typeof utils.isKentuckyTeam === "function"
+        ? utils.isKentuckyTeam(teamName)
+        : String(teamName || "").toLowerCase() === "kentucky";
+      const imageCandidates = shouldUseImage && utils.getPlayerImageCandidates
+        ? utils.getPlayerImageCandidates(rosterPlayer?.id || statLine?.athleteId)
+        : [];
+      const fallback = utils.getFallbackImage ? utils.getFallbackImage("player") : "assets/images/players/placeholder.svg";
+      const visualMarkup = shouldUseImage
+        ? `
+          <img
+            class="player-headshot"
+            alt="${escapeHtml(statLine?.name || rosterPlayer?.name || "Unknown Player")} portrait"
+            data-image-type="player"
+            data-fallback-src="${escapeHtml(fallback)}"
+            data-image-candidates="${escapeHtml(imageCandidates.join("|"))}"
+          >
+        `
+        : `<div class="player-headshot player-headshot--number" aria-hidden="true">${escapeHtml(rosterPlayer?.jersey || "--")}</div>`;
       header.innerHTML = `
         <div class="player-hero">
           <div class="stack stack--lg">
-            <div>
-              <span class="eyebrow">${escapeHtml(seasonLabel(season))}</span>
-              <div class="player-header-name">${escapeHtml(statLine?.name || rosterPlayer?.name || "Unknown Player")}</div>
+            <div class="player-identity">
+              ${visualMarkup}
+              <div>
+                <span class="eyebrow">${escapeHtml(seasonLabel(season))}</span>
+                <div class="player-header-name">${escapeHtml(statLine?.name || rosterPlayer?.name || "Unknown Player")}</div>
+              </div>
             </div>
             <div class="player-meta-list">
+              <span>${escapeHtml(teamName || DEFAULT_TEAM_NAME)}</span>
               <span>${escapeHtml(formatPosition(rosterPlayer?.position || statLine?.position))}</span>
               <span>${escapeHtml(getHelpers().utils.heightInches(rosterPlayer?.height))}</span>
               <span>${escapeHtml(`${rosterPlayer?.weight || "--"} lbs`)}</span>
@@ -575,6 +652,8 @@
           </div>
         </div>
       `;
+
+      utils.hydrateManagedImages?.(header);
     }
 
     function renderSeasonBar(statLine) {
@@ -807,7 +886,7 @@
       });
     }
 
-    function renderRadarChart(statLine, allPlayers) {
+    function renderRadarChart(statLine, allPlayers, rosterPlayers, rosterPlayer) {
       const target = document.getElementById("radar-section");
 
       if (!statLine) {
@@ -815,7 +894,104 @@
         return;
       }
 
+      target.closest(".profile-chart-card")?.classList.add("radar-section-card");
+
+      const players = safeArray(allPlayers);
+      const rosterById = new Map(safeArray(rosterPlayers).map((player) => [Number(player.id), player]));
+      const games = Number(statLine.games || 0);
+      const normalizePositionGroup = getHelpers().utils.normalizePositionGroup
+        || ((position) => {
+          const value = String(position || "").toLowerCase();
+          if (value.includes("guard")) return "guard";
+          if (value.includes("forward")) return "forward";
+          if (value.includes("center")) return "center";
+          return "unknown";
+        });
+      const getShootingRating = (player) => {
+        const playerGames = Number(player?.games || 0) || 1;
+        const threePct = Number(player?.threePointFieldGoals?.pct || 0);
+        const ftPct = Number(player?.freeThrows?.pct || 0);
+        const efgPct = Number(player?.effectiveFieldGoalPct || 0);
+        const tsPct = Number(player?.trueShootingPct || 0);
+        const threesMadePerGame = Number(player?.threePointFieldGoals?.made || 0) / playerGames;
+        const threesAttemptedPerGame = Number(player?.threePointFieldGoals?.attempted || 0) / playerGames;
+
+        return (threePct * 42) +
+          (ftPct * 18) +
+          (efgPct * 16) +
+          (tsPct * 14) +
+          (Math.min(threesMadePerGame, 4) * 3.5) +
+          (Math.min(threesAttemptedPerGame, 8) * 2);
+      };
+      const getPositionAwareSize = (player, rosterEntry) => {
+        const targetGroup = normalizePositionGroup(rosterEntry?.position || player?.position);
+        const targetHeight = Number(rosterEntry?.height || 0);
+
+        if (!targetHeight) {
+          return 0;
+        }
+
+        const peerHeights = players
+          .map((entry) => {
+            const peerRoster = rosterById.get(Number(entry?.athleteId));
+            return {
+              height: Number(peerRoster?.height || 0),
+              group: normalizePositionGroup(peerRoster?.position || entry?.position)
+            };
+          })
+          .filter((entry) => entry.height > 0 && entry.group === targetGroup)
+          .map((entry) => entry.height);
+
+        if (!peerHeights.length) {
+          return targetHeight;
+        }
+
+        const minHeight = Math.min(...peerHeights);
+        const maxHeight = Math.max(...peerHeights);
+
+        if (minHeight === maxHeight) {
+          return 100;
+        }
+
+        return ((targetHeight - minHeight) / (maxHeight - minHeight)) * 100;
+      };
+      const metrics = [
+        { key: "scoring", label: "Scoring", value: Number(getPerGame(statLine.points, games)) },
+        { key: "playmaking", label: "Playmaking", value: Number(getPerGame(statLine.assists, games)) },
+        { key: "rebounding", label: "Rebounding", value: Number(getPerGame(statLine.rebounds?.total, games)) },
+        { key: "shooting", label: "Shooting", value: getShootingRating(statLine) },
+        { key: "efficiency", label: "Efficiency", value: Number(statLine.trueShootingPct || 0) * 100 },
+        { key: "rimPressure", label: "Rim Pressure", value: Number(statLine.freeThrowRate || 0) * 100 },
+        { key: "defense", label: "Defense", value: Number(getPerGame((statLine.steals || 0) + (statLine.blocks || 0), games)) },
+        { key: "size", label: "Size", value: getPositionAwareSize(statLine, rosterPlayer) }
+      ];
+
+      const maxMap = {
+        scoring: Math.max(...players.map((player) => Number(getPerGame(player.points, player.games))), 1),
+        playmaking: Math.max(...players.map((player) => Number(getPerGame(player.assists, player.games))), 1),
+        rebounding: Math.max(...players.map((player) => Number(getPerGame(player.rebounds?.total, player.games))), 1),
+        shooting: Math.max(...players.map((player) => getShootingRating(player)), 1),
+        efficiency: Math.max(...players.map((player) => Number(player.trueShootingPct || 0) * 100), 1),
+        rimPressure: Math.max(...players.map((player) => Number(player.freeThrowRate || 0) * 100), 1),
+        defense: Math.max(...players.map((player) => Number(getPerGame((player.steals || 0) + (player.blocks || 0), player.games))), 1),
+        size: 100
+      };
+
+      const topTraits = metrics
+        .map((item) => ({
+          label: item.label,
+          score: Number(((item.value / maxMap[item.key]) * 100).toFixed(1))
+        }))
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 3);
+
       target.innerHTML = `
+        <article class="card" style="margin-bottom: 18px;">
+          <div class="metric-label">Top Traits</div>
+          <div class="radar-insights">
+            ${topTraits.map((trait) => `<span class="radar-pill">${escapeHtml(trait.label)} ${escapeHtml(trait.score)}th pct</span>`).join("")}
+          </div>
+        </article>
         <div class="chart-wrap">
           <div class="chart-frame">
             <canvas id="radar-chart" aria-label="Player radar chart"></canvas>
@@ -823,37 +999,28 @@
         </div>
       `;
 
-      const players = safeArray(allPlayers);
-      const games = Number(statLine.games || 0);
-      const metrics = [
-        { key: "scoring", label: "Scoring", value: Number(getPerGame(statLine.points, games)) },
-        { key: "rebounding", label: "Rebounding", value: Number(getPerGame(statLine.rebounds?.total, games)) },
-        { key: "playmaking", label: "Playmaking", value: Number(getPerGame(statLine.assists, games)) },
-        { key: "defense", label: "Defense", value: Number(getPerGame(statLine.steals + statLine.blocks, games)) },
-        { key: "efficiency", label: "Efficiency", value: Number(statLine.trueShootingPct || 0) * 100 },
-        { key: "shooting", label: "Shooting", value: Number(statLine.threePointFieldGoals?.pct || 0) }
-      ];
-
-      const maxMap = {
-        scoring: Math.max(...players.map((player) => Number(getPerGame(player.points, player.games))), 1),
-        rebounding: Math.max(...players.map((player) => Number(getPerGame(player.rebounds?.total, player.games))), 1),
-        playmaking: Math.max(...players.map((player) => Number(getPerGame(player.assists, player.games))), 1),
-        defense: Math.max(...players.map((player) => Number(getPerGame((player.steals || 0) + (player.blocks || 0), player.games))), 1),
-        efficiency: Math.max(...players.map((player) => Number(player.trueShootingPct || 0) * 100), 1),
-        shooting: Math.max(...players.map((player) => Number(player.threePointFieldGoals?.pct || 0)), 1)
-      };
-
       getHelpers().charts.radarChart("radar-chart", metrics.map((item) => item.label), [
         {
           label: statLine.name,
           data: metrics.map((item) => ((item.value / maxMap[item.key]) * 100).toFixed(1))
         }
       ], {
+        elements: {
+          line: { borderWidth: 3 },
+          point: { radius: 3, hoverRadius: 5 }
+        },
         scales: {
           r: {
             max: 100,
             ticks: {
               stepSize: 20
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              color: "#DCEBFF"
             }
           }
         }
@@ -958,6 +1125,7 @@
     async function loadPlayerPage() {
       const athleteId = Number.parseInt(getQueryParam("id"), 10);
       const season = getPageSeason();
+      const requestedTeam = getPageTeam();
       const { api, printer } = getHelpers();
 
       printer.bindExportButtons({ pageName: `player-${athleteId || "profile"}`, elementId: "main-content" });
@@ -968,30 +1136,33 @@
       }
 
       try {
+        const nationalStatsResponse = await api.apiFetch("/stats/player/season", { season });
+        const statLine = findPlayerStatLine(nationalStatsResponse, athleteId);
+
+        if (!statLine) {
+          renderPageError("This player was not found for the selected season.");
+          return;
+        }
+
+        const resolvedTeam = statLine.team || requestedTeam || DEFAULT_TEAM_NAME;
         const [
           rosterResponse,
-          statsResponse,
+          teamStatsResponse,
           shootingResponse,
           gamesPlayersResponse,
           shotPlaysResponse,
           gamesResponse
         ] = await Promise.all([
-          api.apiFetch("/teams/roster", { team: TEAM_NAME, season }),
-          api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
-          api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season }),
-          api.apiFetch("/games/players", { team: TEAM_NAME, season }),
+          api.apiFetch("/teams/roster", { team: resolvedTeam, season }),
+          api.apiFetch("/stats/player/season", { team: resolvedTeam, season }),
+          api.apiFetch("/stats/player/shooting/season", { team: resolvedTeam, season }),
+          api.apiFetch("/games/players", { team: resolvedTeam, season }),
           api.apiFetch(`/plays/player/${athleteId}`, { season, shootingPlaysOnly: true }),
-          api.apiFetch("/games", { team: TEAM_NAME, season })
+          api.apiFetch("/games", { team: resolvedTeam, season })
         ]);
 
         const rosterPlayer = findRosterPlayer(rosterResponse, athleteId);
-        const statLine = findPlayerStatLine(statsResponse, athleteId);
         const shootingLine = findPlayerShooting(shootingResponse, athleteId);
-
-        if (!rosterPlayer && !statLine) {
-          renderPageError("This player was not found for the selected season.");
-          return;
-        }
 
         renderHeader(rosterPlayer || {}, statLine || {}, season);
         renderSeasonBar(statLine || {});
@@ -1008,7 +1179,7 @@
           return {
             ...row,
             metadata,
-            result: metadata.id ? getHelpers().utils.getResult(metadata, TEAM_NAME) : "--",
+            result: metadata.id ? getHelpers().utils.getResult(metadata, resolvedTeam) : "--",
             fieldGoals: `${row.player.fieldGoals?.made || 0}-${row.player.fieldGoals?.attempted || 0}`,
             threePointFieldGoals: `${row.player.threePointFieldGoals?.made || 0}-${row.player.threePointFieldGoals?.attempted || 0}`,
             freeThrows: `${row.player.freeThrows?.made || 0}-${row.player.freeThrows?.attempted || 0}`
@@ -1016,7 +1187,12 @@
         });
 
         renderTrendChart(gameLogRows);
-        renderRadarChart(statLine || {}, statsResponse);
+        renderRadarChart(
+          statLine || {},
+          teamStatsResponse,
+          safeArray(safeArray(rosterResponse)[0]?.players),
+          rosterPlayer || {}
+        );
         renderGameLogTable();
         bindGameLogSorting();
         updateGameLogSortIndicators();

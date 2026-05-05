@@ -1,7 +1,9 @@
 const DEFAULT_SEASON = 2026;
 const MIN_SEASON = 2000;
-const MAX_SEASON = 2026;
+const MAX_SEASON = 2027;
 const SEASON_STORAGE_KEY = "bbnstats_season";
+const PLAYER_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "svg"];
+const TEAM_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "svg"];
 const CLASS_YEAR_BY_SEASON = {
   2018: {
     "Kevin Knox": "FR",
@@ -159,6 +161,20 @@ function normalizePlayerName(name) {
     .toLowerCase();
 }
 
+function normalizeTeamName(team) {
+  return String(team || "")
+    .normalize("NFKD")
+    .replace(/[^\w\s&.'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isKentuckyTeam(team) {
+  const normalized = normalizeTeamName(team);
+  return normalized === "kentucky" || normalized === "kentucky wildcats";
+}
+
 function normalizeClassYearLabel(value) {
   const normalized = String(value || "").trim().toUpperCase();
 
@@ -191,6 +207,11 @@ function getSeason() {
   const storedSeason = Number.parseInt(localStorage.getItem(SEASON_STORAGE_KEY), 10);
 
   if (Number.isNaN(storedSeason)) {
+    return DEFAULT_SEASON;
+  }
+
+  if (storedSeason === 2027) {
+    localStorage.setItem(SEASON_STORAGE_KEY, String(DEFAULT_SEASON));
     return DEFAULT_SEASON;
   }
 
@@ -309,9 +330,113 @@ function winProbColor(prob) {
   return "#27ae60";
 }
 
+function buildLocalImageCandidates(folder, id, extensions = []) {
+  const normalizedId = String(id ?? "").trim();
+
+  if (!normalizedId) {
+    return [];
+  }
+
+  return extensions.map((extension) => `assets/images/${folder}/${encodeURIComponent(normalizedId)}.${extension}`);
+}
+
+function getPlayerImageCandidates(playerId) {
+  return buildLocalImageCandidates("players", playerId, PLAYER_IMAGE_EXTENSIONS);
+}
+
+function getTeamImageCandidates(teamId) {
+  return buildLocalImageCandidates("teams", teamId, TEAM_IMAGE_EXTENSIONS);
+}
+
+function getFallbackImage(type = "player") {
+  return type === "team"
+    ? "assets/images/teams/placeholder.svg"
+    : "assets/images/players/placeholder.svg";
+}
+
+function applyImageFallback(image, fallbackSrc) {
+  if (!image) {
+    return;
+  }
+
+  image.onerror = null;
+  image.src = fallbackSrc;
+}
+
+function hydrateManagedImages(scope = document) {
+  const root = scope && typeof scope.querySelectorAll === "function" ? scope : document;
+
+  root.querySelectorAll("img[data-image-candidates]").forEach((image) => {
+    const raw = image.dataset.imageCandidates || "";
+    const candidates = raw.split("|").filter(Boolean);
+    const fallback = image.dataset.fallbackSrc || getFallbackImage(image.dataset.imageType || "player");
+
+    if (!candidates.length) {
+      applyImageFallback(image, fallback);
+      return;
+    }
+
+    let index = 0;
+    const tryNext = () => {
+      if (index >= candidates.length) {
+        applyImageFallback(image, fallback);
+        return;
+      }
+
+      const nextSrc = candidates[index];
+      index += 1;
+      image.src = nextSrc;
+    };
+
+    image.onerror = tryNext;
+    tryNext();
+  });
+}
+
+function normalizePositionGroup(position) {
+  const value = String(position || "").toLowerCase();
+
+  if (value.includes("guard")) return "guard";
+  if (value.includes("forward")) return "forward";
+  if (value.includes("center")) return "center";
+  return "unknown";
+}
+
+function isPostseasonLike(item) {
+  const text = [
+    item?.seasonType,
+    item?.seasonTypeLabel,
+    item?.tournament,
+    item?.eventType,
+    item?.eventName,
+    item?.notes,
+    item?.name,
+    item?.label,
+    item?.postseasonLabel
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return text.includes("post") ||
+    text.includes("ncaa") ||
+    text.includes("march madness") ||
+    text.includes("sec tournament") ||
+    text.includes("sec tourney") ||
+    text.includes("southeastern conference tournament") ||
+    text.includes("nit") ||
+    text.includes("cbi") ||
+    text.includes("crown") ||
+    text.includes("tournament") ||
+    text.includes("championship") ||
+    text.includes("sec tournament") ||
+    text.includes("sec tourney") ||
+    text.includes("conference tournament");
+}
+
 window.BBNStatsUtils = {
   DEFAULT_SEASON,
   SEASON_STORAGE_KEY,
+  normalizePlayerName,
+  normalizeTeamName,
+  isKentuckyTeam,
   getSeason,
   setSeason,
   fmtPct,
@@ -321,5 +446,10 @@ window.BBNStatsUtils = {
   formatDate,
   getResult,
   winProbColor,
-  getPlayerClassYear
+  getPlayerClassYear,
+  getPlayerImageCandidates,
+  getTeamImageCandidates,
+  getFallbackImage,
+  hydrateManagedImages,
+  isPostseasonLike
 };

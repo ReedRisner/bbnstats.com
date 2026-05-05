@@ -13,7 +13,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BBN Stats | Compare Players</title>
-  <meta name="description" content="Compare up to four Kentucky players across seasons with stats, charts, and shot profiles.">
+  <meta name="description" content="Compare up to four college basketball players across seasons with stats, charts, and shot profiles.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,6 +44,12 @@
       display: grid;
       gap: 12px;
       margin-top: 14px;
+    }
+
+    .selector-player-row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
     .selector-card__actions,
@@ -91,6 +97,10 @@
       display: grid;
       gap: 20px;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    #radar-frame {
+      min-height: 320px;
     }
 
     .slot-summary {
@@ -159,8 +169,48 @@
       margin-bottom: 16px;
     }
 
+    .compare-search__input {
+      width: 100%;
+      border: 1px solid rgba(74, 144, 217, 0.24);
+      border-radius: 12px;
+      background: rgba(13, 31, 58, 0.92);
+      color: var(--text-primary);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .compare-search__results {
+      display: grid;
+      gap: 8px;
+    }
+
+    .compare-search__result {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid rgba(74, 144, 217, 0.16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      text-align: left;
+    }
+
+    .compare-search__result:hover,
+    .compare-search__result:focus-visible {
+      border-color: rgba(74, 144, 217, 0.34);
+      background: rgba(74, 144, 217, 0.12);
+      outline: none;
+    }
+
+    .compare-search__meta {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
     @media (max-width: 980px) {
       .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .selector-player-row {
         grid-template-columns: 1fr;
       }
     }
@@ -177,7 +227,7 @@
       <div class="hero-banner">
         <span class="eyebrow">Player Comparison</span>
         <h1 class="hero-title">Player Comparison Tool</h1>
-        <p class="lead">Compare up to four Kentucky players side by side across seasons, archetypes, shooting profiles, and shot charts.</p>
+            <p class="lead">Compare up to four players from anywhere in the country side by side across seasons, shooting profiles, and shot charts.</p>
       </div>
     </section>
 
@@ -223,7 +273,7 @@
             <div class="chart-header">
               <div>
                 <h2 class="chart-title">Radar Profile</h2>
-                <p class="chart-copy">Normalized to the loaded Kentucky player pool across the selected seasons.</p>
+                <p class="chart-copy">Normalized to the loaded national player pool across the selected seasons.</p>
               </div>
             </div>
             <div class="chart-wrap">
@@ -281,9 +331,8 @@
   <script src="js/shotchart.js"></script>
   <script src="js/print.js"></script>
   <script>
-    const TEAM_NAME = "Kentucky";
     const MAX_SLOTS = 4;
-    const COMPARE_SEASON_OPTIONS = Array.from({ length: 2026 - 2000 + 1 }, (_, index) => 2026 - index);
+    const COMPARE_SEASON_OPTIONS = Array.from({ length: 2027 - 2000 + 1 }, (_, index) => 2027 - index);
     const SLOT_KEYS = ["c1", "c2", "c3", "c4"];
     const SLOT_COLORS = ["#3B82F6", "#EF4444", "#F59E0B", "#10B981"];
     const TAB_DEFS = {
@@ -300,6 +349,10 @@
         { key: "ftPct", label: "FT%", format: "pct", higherBetter: true }
       ],
       advanced: [
+        { key: "starts", label: "Starts", format: "int", higherBetter: true },
+        { key: "totalMinutes", label: "Minutes", format: "int", higherBetter: true },
+        { key: "turnoversPerGame", label: "TO/G", format: "num", higherBetter: false },
+        { key: "foulsPerGame", label: "Fouls/G", format: "num", higherBetter: false },
         { key: "usage", label: "Usage%", format: "pct", higherBetter: true },
         { key: "offensiveRating", label: "OffRtg", format: "num", higherBetter: true },
         { key: "defensiveRating", label: "DefRtg", format: "num", higherBetter: false },
@@ -314,6 +367,21 @@
         { key: "wsPer40", label: "WS/40", format: "num", higherBetter: true }
       ],
       shooting: [
+        { key: "fieldGoalsAttempted", label: "FGA", format: "int", higherBetter: true },
+        { key: "twoPointAttempts", label: "2PA", format: "int", higherBetter: true },
+        { key: "threePointAttempts", label: "3PA", format: "int", higherBetter: true },
+        { key: "freeThrowAttempts", label: "FTA", format: "int", higherBetter: true },
+        { key: "fgAttemptsPerGame", label: "FGA/G", format: "num", higherBetter: true },
+        { key: "twoAttemptsPerGame", label: "2PA/G", format: "num", higherBetter: true },
+        { key: "threeAttemptsPerGame", label: "3PA/G", format: "num", higherBetter: true },
+        { key: "ftAttemptsPerGame", label: "FTA/G", format: "num", higherBetter: true },
+        { key: "fieldGoalsMade", label: "FGM", format: "int", higherBetter: true },
+        { key: "threePointMade", label: "3PM", format: "int", higherBetter: true },
+        { key: "freeThrowsMade", label: "FTM", format: "int", higherBetter: true },
+        { key: "fgMadePerGame", label: "FGM/G", format: "num", higherBetter: true },
+        { key: "threeMadePerGame", label: "3PM/G", format: "num", higherBetter: true },
+        { key: "ftMadePerGame", label: "FTM/G", format: "num", higherBetter: true },
+        { key: "trackedShots", label: "Tracked Shots", format: "int", higherBetter: true },
         { key: "fgLine", label: "FG", format: "text", higherBetter: null },
         { key: "threeLine", label: "3P", format: "text", higherBetter: null },
         { key: "ftLine", label: "FT", format: "text", higherBetter: null },
@@ -328,10 +396,12 @@
 
     let visibleSlots = 2;
     let currentTab = "traditional";
-    let slots = Array.from({ length: MAX_SLOTS }, () => ({ season: 2026, athleteId: "" }));
+    let slots = Array.from({ length: MAX_SLOTS }, () => ({ season: 2026, athleteId: "", searchQuery: "" }));
     let compareState = {
       seasonStats: new Map(),
-      seasonShooting: new Map(),
+      seasonKentuckyOptions: new Map(),
+      seasonNationalOptions: new Map(),
+      teamShooting: new Map(),
       seasonPools: new Map(),
       selectedPlayers: []
     };
@@ -352,6 +422,20 @@
       if (Array.isArray(value)) return value;
       if (value && Array.isArray(value.value)) return value.value;
       return [];
+    }
+
+    function flattenRosterGroups(rosterResponse) {
+      return safeArray(rosterResponse).flatMap((group) => {
+        const teamName = group?.team || "";
+        return safeArray(group?.players).map((player) => ({
+          athleteId: String(player?.id ?? ""),
+          name: player?.name || "Unknown Player",
+          position: player?.position || "",
+          team: teamName,
+          jersey: player?.jersey || "",
+          height: Number(player?.height || 0)
+        }));
+      }).filter((player) => player.athleteId);
     }
 
     function escapeHtml(value) {
@@ -388,7 +472,7 @@
     function parseUrlState() {
       const params = new URLSearchParams(window.location.search);
       const defaultSeason = getDefaultSeason();
-      const nextSlots = Array.from({ length: MAX_SLOTS }, () => ({ season: defaultSeason, athleteId: "" }));
+      const nextSlots = Array.from({ length: MAX_SLOTS }, () => ({ season: defaultSeason, athleteId: "", searchQuery: "" }));
       let highestUsed = 0;
 
       SLOT_KEYS.forEach((key, index) => {
@@ -398,7 +482,8 @@
         if (!athleteId) return;
         nextSlots[index] = {
           season: Number(seasonText || defaultSeason),
-          athleteId
+          athleteId,
+          searchQuery: ""
         };
         highestUsed = Math.max(highestUsed, index + 1);
       });
@@ -406,7 +491,7 @@
       const singleId = params.get("id");
       const singleSeason = Number(params.get("season") || defaultSeason);
       if (singleId && !nextSlots[0].athleteId) {
-        nextSlots[0] = { season: singleSeason, athleteId: singleId };
+        nextSlots[0] = { season: singleSeason, athleteId: singleId, searchQuery: "" };
       }
 
       visibleSlots = Math.max(2, Math.min(MAX_SLOTS, Number(params.get("slots") || highestUsed || 2)));
@@ -430,30 +515,76 @@
         return;
       }
 
-      const [statsResponse, shootingResponse] = await Promise.all([
-        getHelpers().api.apiFetch("/stats/player/season", { team: TEAM_NAME, season }),
-        getHelpers().api.apiFetch("/stats/player/shooting/season", { team: TEAM_NAME, season })
+      const [statsResponse, kentuckyRosterResponse, nationalRosterResponse] = await Promise.all([
+        getHelpers().api.apiFetch("/stats/player/season", { season }),
+        getHelpers().api.apiFetch("/teams/roster", { team: "Kentucky", season }),
+        getHelpers().api.apiFetch("/teams/roster", { season })
       ]);
 
       const statsRows = safeArray(statsResponse);
-      const shootingRows = safeArray(shootingResponse);
+      const kentuckyRows = flattenRosterGroups(kentuckyRosterResponse);
+      const nationalRows = flattenRosterGroups(nationalRosterResponse);
       compareState.seasonStats.set(season, statsRows);
-      compareState.seasonShooting.set(season, shootingRows);
+      compareState.seasonKentuckyOptions.set(season, kentuckyRows);
+      compareState.seasonNationalOptions.set(season, nationalRows);
       compareState.seasonPools.set(season, {
         statsRows,
-        shootingRows,
-        playerOptions: statsRows
+        playerOptions: kentuckyRows
           .map((player) => ({
             athleteId: String(player.athleteId),
             name: player.name || "Unknown Player",
-            position: player.position || ""
+            position: player.position || "",
+            team: player.team || "",
+            height: Number(player.height || 0)
           }))
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a, b) => `${a.name} ${a.team}`.localeCompare(`${b.name} ${b.team}`)),
+        nationalOptions: nationalRows
+          .map((player) => ({
+            athleteId: String(player.athleteId),
+            name: player.name || "Unknown Player",
+            position: player.position || "",
+            team: player.team || "",
+            height: Number(player.height || 0)
+          }))
+          .sort((a, b) => `${a.name} ${a.team}`.localeCompare(`${b.name} ${b.team}`))
       });
     }
 
     function getSeasonPool(season) {
-      return compareState.seasonPools.get(season) || { statsRows: [], shootingRows: [], playerOptions: [] };
+      return compareState.seasonPools.get(season) || { statsRows: [], playerOptions: [], nationalOptions: [] };
+    }
+
+    async function loadTeamShootingPool(team, season) {
+      const teamKey = `${season}::${String(team || "").trim()}`;
+      if (compareState.teamShooting.has(teamKey)) {
+        return compareState.teamShooting.get(teamKey);
+      }
+
+      if (!team) {
+        compareState.teamShooting.set(teamKey, []);
+        return [];
+      }
+
+      try {
+        const response = await getHelpers().api.apiFetch("/stats/player/shooting/season", { team, season });
+        const rows = safeArray(response);
+        compareState.teamShooting.set(teamKey, rows);
+        return rows;
+      } catch (error) {
+        compareState.teamShooting.set(teamKey, []);
+        return [];
+      }
+    }
+
+    function getSearchMatches(index, pool) {
+      const query = normalizePlayerName(slots[index]?.searchQuery || "");
+      if (!query) {
+        return [];
+      }
+
+      return safeArray(pool?.nationalOptions)
+        .filter((player) => normalizePlayerName(`${player.name} ${player.team} ${player.position}`).includes(query))
+        .slice(0, 6);
     }
 
     function renderSelectorGrid() {
@@ -462,14 +593,16 @@
         const slot = slots[index];
         const pool = getSeasonPool(slot.season);
         const players = pool.playerOptions || [];
-        const selected = players.find((player) => String(player.athleteId) === String(slot.athleteId));
+        const selected = [...safeArray(pool.playerOptions), ...safeArray(pool.nationalOptions)]
+          .find((player) => String(player.athleteId) === String(slot.athleteId));
+        const matches = getSearchMatches(index, pool);
 
         return `
           <article class="card selector-card">
             <div class="metric-label">Slot ${index + 1}</div>
             <div class="slot-summary">
               <div class="card-title">${escapeHtml(selected?.name || "Select a player")}</div>
-              <div class="hero-support">${escapeHtml(selected ? `${selected.position || "Kentucky"} | ${seasonLabel(slot.season)}` : "Choose a season and player")}</div>
+              <div class="hero-support">${escapeHtml(selected ? `${selected.team || "Unknown team"}${selected.position ? ` | ${selected.position}` : ""} | ${seasonLabel(slot.season)}` : "Choose a season and player")}</div>
             </div>
             <div class="selector-card__controls">
               <label>
@@ -478,13 +611,29 @@
                   ${COMPARE_SEASON_OPTIONS.map((season) => `<option value="${season}"${season === slot.season ? " selected" : ""}>${season}</option>`).join("")}
                 </select>
               </label>
-              <label>
-                <span class="metric-label">Player</span>
-                <select class="compare-select" data-slot-player="${index}">
-                  <option value="">Select player</option>
-                  ${players.map((player) => `<option value="${escapeHtml(player.athleteId)}"${String(player.athleteId) === String(slot.athleteId) ? " selected" : ""}>${escapeHtml(player.name)}</option>`).join("")}
-                </select>
-              </label>
+              <div class="selector-player-row">
+                <label>
+                  <span class="metric-label">Player</span>
+                  <select class="compare-select" data-slot-player="${index}">
+                    <option value="">Select Kentucky player</option>
+                    ${players.map((player) => `<option value="${escapeHtml(player.athleteId)}"${String(player.athleteId) === String(slot.athleteId) ? " selected" : ""}>${escapeHtml(`${player.name} | ${player.team || "Unknown team"}`)}</option>`).join("")}
+                  </select>
+                </label>
+                <label>
+                  <span class="metric-label">Search Nationally</span>
+                  <input class="compare-search__input" type="search" value="${escapeHtml(slot.searchQuery || "")}" data-slot-search="${index}" placeholder="Search any player this season">
+                </label>
+              </div>
+              ${matches.length ? `
+                <div class="compare-search__results">
+                  ${matches.map((player) => `
+                    <button class="compare-search__result" type="button" data-slot-search-select="${index}" data-athlete-id="${escapeHtml(player.athleteId)}">
+                      <div>${escapeHtml(player.name)}</div>
+                      <div class="compare-search__meta">${escapeHtml(`${player.team || "Unknown team"}${player.position ? ` | ${player.position}` : ""}`)}</div>
+                    </button>
+                  `).join("")}
+                </div>
+              ` : ""}
             </div>
             <div class="selector-card__actions">
               <button class="btn btn--secondary" type="button" data-add-after="${index}">Add Player</button>
@@ -498,8 +647,11 @@
 
     async function refreshSelectorPools() {
       const seasons = Array.from(new Set(slots.slice(0, visibleSlots).map((slot) => slot.season)));
-      await Promise.all(seasons.map((season) => loadSeasonPool(season)));
-      renderSelectorGrid();
+      try {
+        await Promise.all(seasons.map((season) => loadSeasonPool(season)));
+      } finally {
+        renderSelectorGrid();
+      }
     }
 
     function formatShotLine(stat) {
@@ -531,7 +683,46 @@
       });
     }
 
-    function normalizeComparisonPlayer(slotIndex, statLine, shootingLine, shotPlays) {
+    function getPositionGroup(position) {
+      if (typeof getHelpers().utils.normalizePositionGroup === "function") {
+        return getHelpers().utils.normalizePositionGroup(position);
+      }
+
+      const value = String(position || "").toLowerCase();
+      if (value.includes("guard")) return "guard";
+      if (value.includes("forward")) return "forward";
+      if (value.includes("center")) return "center";
+      return "unknown";
+    }
+
+    function getPositionAwareSize(player, rosterPlayer, peerPlayers) {
+      const targetGroup = getPositionGroup(rosterPlayer?.position || player?.position);
+      const targetHeight = Number(rosterPlayer?.height || 0);
+
+      if (!targetHeight) {
+        return 0;
+      }
+
+      const peerHeights = safeArray(peerPlayers)
+        .filter((entry) => getPositionGroup(entry?.position) === targetGroup)
+        .map((entry) => Number(entry?.height || 0))
+        .filter((height) => height > 0);
+
+      if (!peerHeights.length) {
+        return targetHeight;
+      }
+
+      const minHeight = Math.min(...peerHeights);
+      const maxHeight = Math.max(...peerHeights);
+
+      if (minHeight === maxHeight) {
+        return 100;
+      }
+
+      return ((targetHeight - minHeight) / (maxHeight - minHeight)) * 100;
+    }
+
+    function normalizeComparisonPlayer(slotIndex, statLine, shootingLine, shotPlays, rosterPlayer, peerPlayers) {
       const games = Number(statLine.games || 0);
       return {
         slotIndex,
@@ -539,18 +730,23 @@
         athleteId: String(statLine.athleteId),
         name: statLine.name || "Unknown Player",
         position: statLine.position || "",
+        team: statLine.team || "",
         statLine,
         shootingLine,
         shotPlays: safeArray(shotPlays),
-        header: `${statLine.name || "Player"} ${slots[slotIndex].season}`,
+        header: `${statLine.name || "Player"}${statLine.team ? ` (${statLine.team})` : ""} ${slots[slotIndex].season}`,
         values: {
           games,
+          starts: Number(statLine.starts || 0),
+          totalMinutes: Number(statLine.minutes || 0),
           minutesPerGame: perGame(statLine.minutes, games),
           pointsPerGame: perGame(statLine.points, games),
           reboundsPerGame: perGame(statLine.rebounds?.total, games),
           assistsPerGame: perGame(statLine.assists, games),
           stealsPerGame: perGame(statLine.steals, games),
           blocksPerGame: perGame(statLine.blocks, games),
+          turnoversPerGame: perGame(statLine.turnovers, games),
+          foulsPerGame: perGame(statLine.fouls, games),
           fieldGoalPct: Number(statLine.fieldGoals?.pct ?? 0),
           threePct: Number(statLine.threePointFieldGoals?.pct ?? 0),
           ftPct: Number(statLine.freeThrows?.pct ?? 0),
@@ -566,6 +762,22 @@
           PORPAG: Number(statLine.PORPAG ?? 0),
           winShares: Number(statLine.winShares?.total ?? 0),
           wsPer40: Number(statLine.winShares?.totalPer40 ?? 0),
+          size: getPositionAwareSize(statLine, rosterPlayer, peerPlayers),
+          fieldGoalsAttempted: Number(statLine.fieldGoals?.attempted ?? 0),
+          twoPointAttempts: Number(statLine.twoPointFieldGoals?.attempted ?? 0),
+          threePointAttempts: Number(statLine.threePointFieldGoals?.attempted ?? 0),
+          freeThrowAttempts: Number(statLine.freeThrows?.attempted ?? 0),
+          fgAttemptsPerGame: perGame(statLine.fieldGoals?.attempted, games),
+          twoAttemptsPerGame: perGame(statLine.twoPointFieldGoals?.attempted, games),
+          threeAttemptsPerGame: perGame(statLine.threePointFieldGoals?.attempted, games),
+          ftAttemptsPerGame: perGame(statLine.freeThrows?.attempted, games),
+          fieldGoalsMade: Number(statLine.fieldGoals?.made ?? 0),
+          threePointMade: Number(statLine.threePointFieldGoals?.made ?? 0),
+          freeThrowsMade: Number(statLine.freeThrows?.made ?? 0),
+          fgMadePerGame: perGame(statLine.fieldGoals?.made, games),
+          threeMadePerGame: perGame(statLine.threePointFieldGoals?.made, games),
+          ftMadePerGame: perGame(statLine.freeThrows?.made, games),
+          trackedShots: Number(shootingLine?.trackedShots ?? 0),
           fgLine: formatShotLine(statLine.fieldGoals),
           threeLine: formatShotLine(statLine.threePointFieldGoals),
           ftLine: formatShotLine(statLine.freeThrows),
@@ -592,8 +804,11 @@
       const players = await Promise.all(activeSlots.map(async (slot) => {
         const pool = getSeasonPool(slot.season);
         const statLine = safeArray(pool.statsRows).find((player) => String(player.athleteId) === String(slot.athleteId));
-        const shootingLine = safeArray(pool.shootingRows).find((player) => String(player.athleteId) === String(slot.athleteId)) || null;
         if (!statLine) return null;
+        const rosterPlayer = [...safeArray(pool.playerOptions), ...safeArray(pool.nationalOptions)]
+          .find((player) => String(player.athleteId) === String(slot.athleteId)) || null;
+        const shootingRows = await loadTeamShootingPool(statLine.team, slot.season);
+        const shootingLine = safeArray(shootingRows).find((player) => String(player.athleteId) === String(slot.athleteId)) || null;
         let shotPlays = [];
         try {
           shotPlays = await getHelpers().api.apiFetch(`/plays/player/${slot.athleteId}`, { season: slot.season, shootingPlaysOnly: true });
@@ -604,7 +819,9 @@
           slot.index,
           statLine,
           shootingLine,
-          filterShotAttemptsForPlayer(shotPlays, statLine?.athleteId, statLine?.name)
+          filterShotAttemptsForPlayer(shotPlays, statLine?.athleteId, statLine?.name),
+          rosterPlayer,
+          pool.nationalOptions
         );
       }));
 
@@ -614,6 +831,7 @@
 
     function formatCell(value, format) {
       if (format === "pct") return fmtPct(value);
+      if (format === "int") return String(Math.round(Number(value || 0)));
       if (format === "num") return fmtNum(value, 1);
       return String(value ?? "--");
     }
@@ -624,7 +842,7 @@
         <article class="card">
           <div class="metric-label">Player ${index + 1}</div>
           <div class="card-title">${escapeHtml(player.name)}</div>
-          <div class="hero-support">${escapeHtml(`${seasonLabel(player.season)} | ${player.position || "Kentucky"}`)}</div>
+          <div class="hero-support">${escapeHtml(`${seasonLabel(player.season)} | ${player.team || "Unknown team"}${player.position ? ` | ${player.position}` : ""}`)}</div>
           <div class="meta-badges">
             <span class="meta-badge" style="border-color:${SLOT_COLORS[index]}; color:${SLOT_COLORS[index]};">${escapeHtml(fmtNum(player.values.pointsPerGame, 1))} PPG</span>
             <span class="meta-badge">${escapeHtml(fmtNum(player.values.reboundsPerGame, 1))} RPG</span>
@@ -673,26 +891,115 @@
 
       target.innerHTML = '<canvas id="compare-radar-chart" aria-label="Comparison radar chart"></canvas>';
       const pool = Array.from(compareState.seasonStats.values()).flat();
+      const getShotTypeScore = (shotType, games) => {
+        const attempts = Number(shotType?.attempted || 0);
+        const pct = Number(shotType?.pct || 0);
+        const attemptsPerGame = games ? attempts / games : 0;
+        return (pct * 100 * 0.7) + (Math.min(attemptsPerGame, 6) * 5);
+      };
+      const getShootingRating = (player, shootingLine = null) => {
+        const playerGames = Number(player?.games || 0) || 1;
+        const fgPct = Number(player?.fieldGoals?.pct || 0);
+        const threePct = Number(player?.threePointFieldGoals?.pct || 0);
+        const ftPct = Number(player?.freeThrows?.pct || 0);
+        const efgPct = Number(player?.effectiveFieldGoalPct || 0);
+        const tsPct = Number(player?.trueShootingPct || 0);
+        const threesMadePerGame = Number(player?.threePointFieldGoals?.made || 0) / playerGames;
+        const threesAttemptedPerGame = Number(player?.threePointFieldGoals?.attempted || 0) / playerGames;
+        const baseScore =
+          (fgPct * 12) +
+          (threePct * 22) +
+          (ftPct * 16) +
+          (efgPct * 20) +
+          (tsPct * 18) +
+          (Math.min(threesMadePerGame, 4) * 8) +
+          (Math.min(threesAttemptedPerGame, 8) * 4);
+
+        if (!shootingLine) {
+          return baseScore;
+        }
+
+        return baseScore +
+          getShotTypeScore(shootingLine?.threePointJumpers, playerGames) * 0.14 +
+          getShotTypeScore(shootingLine?.twoPointJumpers, playerGames) * 0.1 +
+          getShotTypeScore(shootingLine?.layups, playerGames) * 0.09 +
+          getShotTypeScore(shootingLine?.dunks, playerGames) * 0.06 +
+          (Number(shootingLine?.assistedPct || 0) * 10);
+      };
       const getPoolMax = (getter) => Math.max(...pool.map((player) => Number(getter(player) || 0)), 1);
+      const getScoringRating = (player) => {
+        const games = Number(player?.games || 0) || 1;
+        const pointsPerGame = perGame(player?.points, games);
+        const usage = Number(player?.usage || 0) * 100;
+        const ts = Number(player?.trueShootingPct || 0) * 100;
+        const threesMadePerGame = perGame(player?.threePointFieldGoals?.made, games);
+        const freeThrowRate = Number(player?.freeThrowRate || 0) * 100;
+
+        return (pointsPerGame * 6.5) +
+          (usage * 0.7) +
+          (ts * 0.4) +
+          (threesMadePerGame * 7) +
+          (freeThrowRate * 0.18);
+      };
+      const getPlaymakingRating = (player) => {
+        const games = Number(player?.games || 0) || 1;
+        const assistsPerGame = perGame(player?.assists, games);
+        const astTo = Number(player?.assistsTurnoverRatio || 0);
+        const offensiveRating = Number(player?.offensiveRating || 0);
+        const usage = Number(player?.usage || 0) * 100;
+
+        return (assistsPerGame * 15) +
+          (astTo * 16) +
+          (offensiveRating * 0.22) +
+          (usage * 0.18);
+      };
+      const getReboundingRating = (player) => {
+        const games = Number(player?.games || 0) || 1;
+        const reboundsPerGame = perGame(player?.rebounds?.total, games);
+        const offensiveReboundPct = Number(player?.offensiveReboundPct || 0) * 100;
+
+        return (reboundsPerGame * 14) + (offensiveReboundPct * 0.55);
+      };
+      const getDefenseRating = (player) => {
+        const games = Number(player?.games || 0) || 1;
+        const stocksPerGame = perGame(Number(player?.steals || 0) + Number(player?.blocks || 0), games);
+        const defensiveRating = Number(player?.defensiveRating || 100);
+        const defensiveImpact = Math.max(0, 120 - defensiveRating);
+
+        return (stocksPerGame * 26) + (defensiveImpact * 1.35);
+      };
+      const getEfficiencyRating = (player) => {
+        const ts = Number(player?.trueShootingPct || 0) * 100;
+        const efg = Number(player?.effectiveFieldGoalPct || 0) * 100;
+        const offensiveRating = Number(player?.offensiveRating || 0);
+        const wsPer40 = Number(player?.winShares?.totalPer40 || 0) * 100;
+
+        return (ts * 0.34) +
+          (efg * 0.28) +
+          (offensiveRating * 0.22) +
+          (wsPer40 * 0.16);
+      };
       const scaleMap = {
-        scoring: getPoolMax((player) => perGame(player.points, player.games)),
-        rebounding: getPoolMax((player) => perGame(player.rebounds?.total, player.games)),
-        playmaking: getPoolMax((player) => perGame(player.assists, player.games)),
-        defense: getPoolMax((player) => perGame(Number(player.steals || 0) + Number(player.blocks || 0), player.games)),
-        efficiency: getPoolMax((player) => Number(player.trueShootingPct || 0)),
-        shooting: getPoolMax((player) => Number(player.threePointFieldGoals?.pct || 0))
+        scoring: getPoolMax((player) => getScoringRating(player)),
+        rebounding: getPoolMax((player) => getReboundingRating(player)),
+        playmaking: getPoolMax((player) => getPlaymakingRating(player)),
+        defense: getPoolMax((player) => getDefenseRating(player)),
+        efficiency: getPoolMax((player) => getEfficiencyRating(player)),
+        shooting: getPoolMax((player) => getShootingRating(player)),
+        size: 100
       };
 
-      const labels = ["Scoring", "Rebounding", "Playmaking", "Defense", "Efficiency", "Shooting"];
+      const labels = ["Scoring", "Playmaking", "Rebounding", "Shooting", "Efficiency", "Defense", "Size"];
       const datasets = players.map((player, index) => ({
         label: player.header,
         data: [
-          (player.values.pointsPerGame / scaleMap.scoring) * 100,
-          (player.values.reboundsPerGame / scaleMap.rebounding) * 100,
-          (player.values.assistsPerGame / scaleMap.playmaking) * 100,
-          ((player.values.stealsPerGame + player.values.blocksPerGame) / scaleMap.defense) * 100,
-          (player.values.trueShootingPct / scaleMap.efficiency) * 100,
-          (player.values.threePct / scaleMap.shooting) * 100
+          (getScoringRating(player.statLine) / scaleMap.scoring) * 100,
+          (getPlaymakingRating(player.statLine) / scaleMap.playmaking) * 100,
+          (getReboundingRating(player.statLine) / scaleMap.rebounding) * 100,
+          (getShootingRating(player.statLine, player.shootingLine) / scaleMap.shooting) * 100,
+          (getEfficiencyRating(player.statLine) / scaleMap.efficiency) * 100,
+          (getDefenseRating(player.statLine) / scaleMap.defense) * 100,
+          player.values.size
         ],
         borderColor: SLOT_COLORS[index],
         backgroundColor: `${SLOT_COLORS[index]}26`,
@@ -705,11 +1012,33 @@
       }));
 
       getHelpers().charts.radarChart("compare-radar-chart", labels, datasets, {
+        layout: {
+          padding: {
+            top: 4,
+            right: 4,
+            bottom: 4,
+            left: 4
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        elements: {
+          line: { borderWidth: 3 },
+          point: { radius: 4, hoverRadius: 6 }
+        },
         scales: {
           r: {
             min: 0,
             max: 100,
-            ticks: { display: false }
+            ticks: { display: false },
+            pointLabels: {
+              font: {
+                size: 10
+              }
+            }
           }
         }
       });
@@ -836,14 +1165,43 @@
 
     async function handleSlotPlayerChange(index, athleteId) {
       slots[index].athleteId = athleteId;
+      if (!athleteId) {
+        slots[index].searchQuery = "";
+      } else {
+        const pool = getSeasonPool(slots[index].season);
+        const selected = [...safeArray(pool.playerOptions), ...safeArray(pool.nationalOptions)]
+          .find((player) => String(player.athleteId) === String(athleteId));
+        if (selected) {
+          slots[index].searchQuery = `${selected.name} | ${selected.team || ""}`;
+        }
+      }
       syncUrlState();
       await refreshSelectorPools();
       await loadSelectedPlayers();
     }
 
-    async function addVisibleSlot() {
-      if (visibleSlots >= MAX_SLOTS) return;
+    function createEmptySlot() {
+      return { season: getDefaultSeason(), athleteId: "", searchQuery: "" };
+    }
+
+    function insertSlotAt(index) {
+      if (visibleSlots >= MAX_SLOTS) return false;
+
+      const safeIndex = Math.max(0, Math.min(visibleSlots, Number(index)));
+      slots.splice(safeIndex, 0, createEmptySlot());
+      slots = slots.slice(0, MAX_SLOTS);
       visibleSlots += 1;
+      return true;
+    }
+
+    async function addVisibleSlot(afterIndex = visibleSlots - 1) {
+      if (visibleSlots >= MAX_SLOTS) return;
+
+      const inserted = insertSlotAt(Number(afterIndex) + 1);
+      if (!inserted) {
+        return;
+      }
+
       syncUrlState();
       renderSelectorGrid();
       await refreshSelectorPools();
@@ -851,6 +1209,7 @@
 
     async function clearSlot(index) {
       slots[index].athleteId = "";
+      slots[index].searchQuery = "";
       syncUrlState();
       await refreshSelectorPools();
       await loadSelectedPlayers();
@@ -859,13 +1218,11 @@
     async function removeSlot(index) {
       if (visibleSlots <= 2) return;
 
-      for (let current = index; current < MAX_SLOTS - 1; current += 1) {
-        slots[current] = { ...slots[current + 1] };
-      }
-
-      slots[MAX_SLOTS - 1] = { season: getDefaultSeason(), athleteId: "" };
+      slots.splice(index, 1);
+      slots.push(createEmptySlot());
       visibleSlots -= 1;
       syncUrlState();
+      renderSelectorGrid();
       await refreshSelectorPools();
       await loadSelectedPlayers();
     }
@@ -915,7 +1272,7 @@
 
     function bindStaticActions() {
       document.getElementById("add-slot-btn").addEventListener("click", async () => {
-        await addVisibleSlot();
+        await addVisibleSlot(visibleSlots - 1);
       });
       document.getElementById("copy-link-btn").addEventListener("click", copyShareLink);
     }
@@ -934,10 +1291,28 @@
         }
       });
 
+      document.body.addEventListener("input", (event) => {
+        const searchInput = event.target.closest("[data-slot-search]");
+        if (!searchInput) {
+          return;
+        }
+
+        const index = Number(searchInput.dataset.slotSearch);
+        slots[index].searchQuery = searchInput.value;
+        renderSelectorGrid();
+        window.requestAnimationFrame(() => {
+          const replacement = document.querySelector(`[data-slot-search="${index}"]`);
+          if (replacement) {
+            replacement.focus();
+            replacement.setSelectionRange(replacement.value.length, replacement.value.length);
+          }
+        });
+      });
+
       document.body.addEventListener("click", async (event) => {
         const addButton = event.target.closest("[data-add-after]");
         if (addButton) {
-          await addVisibleSlot();
+          await addVisibleSlot(Number(addButton.dataset.addAfter));
           return;
         }
 
@@ -950,6 +1325,18 @@
         const removeButton = event.target.closest("[data-remove-slot]");
         if (removeButton) {
           await removeSlot(Number(removeButton.dataset.removeSlot));
+          return;
+        }
+
+        const searchSelectButton = event.target.closest("[data-slot-search-select]");
+        if (searchSelectButton) {
+          const index = Number(searchSelectButton.dataset.slotSearchSelect);
+          const athleteId = searchSelectButton.dataset.athleteId || "";
+          const pool = getSeasonPool(slots[index].season);
+          const selected = [...safeArray(pool.playerOptions), ...safeArray(pool.nationalOptions)]
+            .find((player) => String(player.athleteId) === String(athleteId));
+          slots[index].searchQuery = selected ? `${selected.name} | ${selected.team || ""}` : "";
+          await handleSlotPlayerChange(index, athleteId);
           return;
         }
 
@@ -971,6 +1358,7 @@
 
     async function loadComparePage() {
       parseUrlState();
+      renderSelectorGrid();
       bindStaticActions();
       bindDynamicActions();
       bindTabs();
